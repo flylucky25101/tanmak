@@ -1,0 +1,13 @@
+{
+  "name": "LUMENFALL — 루멘폴",
+  "short_name": "LUMENFALL",
+  "description": "세로형 초고난이도 탄막 슈팅. 완전 오프라인 실행.",
+  "lang": "ko",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#04050e",
+  "theme_color": "#04050e",
+  "icons": []
+}

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#04050e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>LUMENFALL — 루멘폴</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+:root{
+  --sat:env(safe-area-inset-top,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px);
+  --sar:env(safe-area-inset-right,0px);
+  --ink:#e9edff; --dim:#8b93c9; --cyan:#53f2ff; --pink:#ff54d7;
+  --gold:#ffd35a; --red:#ff3b5f; --violet:#b06cff; --green:#57ffa0;
+  --panel:rgba(10,14,34,0.92);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{
+  margin:0; padding:0; width:100%; height:100%;
+  background:#03040a; color:var(--ink);
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans KR',sans-serif;
+  overflow:hidden; touch-action:none; overscroll-behavior:none;
+  user-select:none; -webkit-user-select:none;
+}
+#app{
+  position:fixed; inset:0;
+  height:100dvh;
+  padding:var(--sat) var(--sar) var(--sab) var(--sal);
+  display:flex; align-items:center; justify-content:center;
+}
+#cv{ display:block; touch-action:none; }
+/* ---------- 화면 공통 ---------- */
+.screen{
+  position:fixed; inset:0; z-index:30;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; text-align:center;
+  background:rgba(3,4,12,0.88);
+  padding:calc(var(--sat) + 16px) 18px calc(var(--sab) + 18px);
+  overflow-y:auto;
+}
+.hidden{ display:none !important; }
+h1.logo{
+  margin:0; font-size:38px; letter-spacing:6px; font-weight:900;
+  background:linear-gradient(180deg,#9ff5ff,#53f2ff 45%,#b06cff);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 0 24px rgba(83,242,255,0.25);
+}
+.tagline{ color:var(--dim); font-size:14px; margin:0 0 8px; }
+h2.sh{ margin:0 0 4px; font-size:22px; letter-spacing:2px; }
+.sub{ color:var(--dim); font-size:14px; margin:0; }
+.btn{
+  appearance:none; border:1px solid rgba(83,242,255,0.45);
+  background:linear-gradient(180deg,rgba(83,242,255,0.14),rgba(16,22,52,0.9));
+  color:var(--ink); font-size:17px; font-weight:700;
+  min-height:52px; min-width:220px; max-width:320px; width:80%;
+  border-radius:12px; padding:10px 18px; cursor:pointer;
+  letter-spacing:1px;
+}
+.btn:active{ transform:scale(0.97); background:rgba(83,242,255,0.28); }
+.btn.primary{ border-color:var(--cyan); box-shadow:0 0 16px rgba(83,242,255,0.28); font-size:19px; }
+.btn.warn{ border-color:rgba(255,59,95,0.6); }
+.btn.small{ min-height:48px; font-size:15px; min-width:170px; }
+.his{ font-size:14px; color:var(--dim); margin:2px 0; }
+.badge-new{
+  color:#0a1020; background:var(--gold); font-weight:800; font-size:14px;
+  padding:4px 14px; border-radius:20px;
+}
+.bigscore{ font-size:34px; font-weight:900; letter-spacing:1px; margin:2px 0; }
+/* 난이도 카드 */
+.dcard{
+  width:86%; max-width:320px; border-radius:14px; padding:14px;
+  border:1px solid rgba(139,147,201,0.4); background:var(--panel);
+  cursor:pointer;
+}
+.dcard:active{ transform:scale(0.97); }
+.dcard .dn{ font-size:20px; font-weight:900; letter-spacing:2px; }
+.dcard .dd{ font-size:13px; color:var(--dim); margin-top:4px; }
+.dcard.aby{ border-color:rgba(255,84,215,0.55); box-shadow:0 0 14px rgba(255,84,215,0.18); }
+.dcard.aby .dn{ color:var(--pink); }
+.dcard.std .dn{ color:var(--cyan); }
+/* 조작 안내 */
+.howrow{
+  display:flex; align-items:center; gap:12px; width:88%; max-width:330px;
+  background:var(--panel); border:1px solid rgba(139,147,201,0.3);
+  border-radius:12px; padding:10px 14px; text-align:left;
+}
+.howrow .ic{ font-size:22px; width:34px; text-align:center; flex:0 0 34px; }
+.howrow .tx{ font-size:14px; line-height:1.45; }
+.howrow .tx b{ color:var(--cyan); }
+/* 설정 */
+.setrow{
+  display:flex; align-items:center; justify-content:space-between;
+  width:90%; max-width:330px; gap:10px;
+  background:var(--panel); border:1px solid rgba(139,147,201,0.28);
+  border-radius:12px; padding:10px 14px;
+}
+.setrow label{ font-size:15px; text-align:left; }
+.setrow input[type=range]{ width:150px; height:34px; accent-color:#53f2ff; }
+.tgl{
+  appearance:none; border:1px solid rgba(139,147,201,0.5); border-radius:20px;
+  background:rgba(20,26,56,0.9); color:var(--dim);
+  min-width:74px; min-height:40px; font-size:14px; font-weight:700; cursor:pointer;
+}
+.tgl.tog-on{ color:#062030; background:var(--cyan); border-color:var(--cyan); }
+/* 결과 */
+#rs-lines{ width:90%; max-width:330px; }
+.rrow{
+  display:flex; justify-content:space-between; font-size:14px; color:var(--dim);
+  padding:5px 8px; border-bottom:1px solid rgba(139,147,201,0.18);
+}
+.rrow.big{ font-size:17px; color:var(--ink); font-weight:800; }
+/* 테스트 */
+#test-list{ width:92%; max-width:340px; max-height:52dvh; overflow-y:auto; text-align:left; }
+.trow{ font-size:12.5px; padding:4px 6px; border-bottom:1px solid rgba(139,147,201,0.15); }
+.trow.tp{ color:var(--green); }
+.trow.tf{ color:var(--red); font-weight:700; }
+/* ---------- 인게임 컨트롤 ---------- */
+#btnFocus,#btnBomb,#btnPause{ display:none; position:fixed; z-index:20;
+  align-items:center; justify-content:center; flex-direction:column;
+  border-radius:50%; font-weight:800; color:var(--ink); cursor:pointer;
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+body.playing #btnFocus, body.playing #btnBomb, body.playing #btnPause{ display:flex; }
+#btnFocus{
+  left:calc(14px + var(--sal)); bottom:calc(16px + var(--sab));
+  width:68px; height:68px; font-size:13px; letter-spacing:1px;
+  border:2px solid rgba(83,242,255,0.6); background:rgba(10,16,40,0.55);
+}
+#btnFocus.on{ background:rgba(83,242,255,0.32); transform:scale(0.94); }
+#btnBomb{
+  right:calc(14px + var(--sar)); bottom:calc(16px + var(--sab));
+  width:68px; height:68px; font-size:13px; letter-spacing:1px;
+  border:2px solid rgba(255,211,90,0.65); background:rgba(28,20,6,0.55);
+}
+#btnBomb.on{ background:rgba(255,211,90,0.35); transform:scale(0.94); }
+#btnBomb.empty{ opacity:0.45; }
+#btnBomb.deny{ animation:shakeX 0.2s; }
+#bombN{
+  position:absolute; top:-4px; right:-2px; background:var(--gold); color:#1c1200;
+  font-size:13px; font-weight:900; min-width:22px; height:22px; line-height:22px;
+  border-radius:11px; text-align:center;
+}
+#btnPause{
+  top:calc(8px + var(--sat)); right:calc(10px + var(--sar));
+  width:48px; height:48px; font-size:15px;
+  border:1.5px solid rgba(139,147,201,0.6); background:rgba(10,16,40,0.55);
+}
+@keyframes shakeX{
+  0%,100%{ transform:translateX(0); }
+  25%{ transform:translateX(-4px); } 75%{ transform:translateX(4px); }
+}
+/* 회전 안내 */
+#scr-rotate{ z-index:80; background:rgba(3,4,12,0.96); }
+#scr-rotate .rot{ font-size:44px; }
+/* 디버그 */
+#dbg{
+  position:fixed; left:4px; top:calc(4px + var(--sat)); z-index:90;
+  font:11px/1.5 ui-monospace,Consolas,monospace; color:#9fe8ff;
+  background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:6px;
+  pointer-events:none; white-space:pre;
+}
+noscript{ color:var(--ink); font-size:16px; }
+</style>
+</head>
+<body>
+<noscript>이 게임은 JavaScript가 필요합니다.</noscript>
+<div id="app"><canvas id="cv" width="360" height="780"></canvas></div>
+
+<div id="btnFocus" role="button" aria-label="포커스(저속 이동)">FOCUS</div>
+<div id="btnBomb" role="button" aria-label="폭탄"><span>BOMB</span><span id="bombN">3</span></div>
+<div id="btnPause" role="button" aria-label="일시정지">❚❚</div>
+<div id="dbg" class="hidden"></div>
+
+<div id="scr-boot" class="screen">
+  <h1 class="logo">LUMENFALL</h1>
+  <p class="sub">초기화 중…</p>
+</div>
+
+<div id="scr-title" class="screen hidden">
+  <h1 class="logo">LUMENFALL</h1>
+  <p class="tagline">루멘폴 — 붕괴한 인공 항성의 심연으로</p>
+  <button id="t-start" class="btn primary">게임 시작</button>
+  <button id="t-practice" class="btn">보스 연습</button>
+  <button id="t-howto" class="btn">조작 안내</button>
+  <button id="t-settings" class="btn">설정</button>
+  <p id="hi-std" class="his">STANDARD 최고 0</p>
+  <p id="hi-aby" class="his">ABYSS 최고 0</p>
+</div>
+
+<div id="scr-howto" class="screen hidden">
+  <h2 class="sh">조작 안내</h2>
+  <div class="howrow"><div class="ic">☝️</div><div class="tx"><b>드래그</b>로 기체 이동 — 손가락 이동량만큼 따라옵니다. 공격은 <b>자동 발사</b>.</div></div>
+  <div class="howrow"><div class="ic">◎</div><div class="tx"><b>FOCUS</b>(왼쪽 아래)를 누르는 동안 저속 이동 + 실제 피격점(흰 점) 표시.</div></div>
+  <div class="howrow"><div class="ic">✦</div><div class="tx"><b>BOMB</b>(오른쪽 아래)은 화면의 탄을 지우고 잠시 무적이 됩니다.</div></div>
+  <div class="howrow"><div class="ic">✧</div><div class="tx">탄을 <b>아슬하게 스치면(그레이즈)</b> 점수와 배율이 오릅니다.</div></div>
+  <div class="howrow"><div class="ic">⌨</div><div class="tx">키보드: 방향키/WASD 이동 · Shift 포커스 · Space/X 폭탄 · P 일시정지 · Enter 시작.</div></div>
+  <button id="hw-start" class="btn primary">확인</button>
+</div>
+
+<div id="scr-diff" class="screen hidden">
+  <h2 class="sh">난이도 선택</h2>
+  <div id="d-std" class="dcard std" role="button">
+    <div class="dn">STANDARD</div>
+    <div class="dd">패턴 학습용 — 그래도 어렵다</div>
+    <div id="d-hi-std" class="dd">최고 0</div>
+  </div>
+  <div id="d-aby" class="dcard aby" role="button">
+    <div class="dn">ABYSS</div>
+    <div class="dd">심연 난이도 — 탄밀도·조준 정밀도·안전지대 축소</div>
+    <div id="d-hi-aby" class="dd">최고 0</div>
+  </div>
+  <button id="d-back" class="btn small">← 타이틀</button>
+</div>
+
+<div id="scr-practice" class="screen hidden">
+  <h2 class="sh">보스 연습</h2>
+  <p class="sub">보스전만 바로 연습합니다.</p>
+  <button id="pr-diff" class="btn small">난이도: STANDARD</button>
+  <button id="pr-mid" class="btn">중간 보스 — 경계 파수기 OCTAV</button>
+  <button id="pr-fin" class="btn">최종 보스 — 프리즘 코어 ASTERION</button>
+  <button id="pr-back" class="btn small">← 타이틀</button>
+</div>
+
+<div id="scr-settings" class="screen hidden">
+  <h2 class="sh">설정</h2>
+  <div class="setrow"><label>효과음</label><input id="rng-sfx" type="range" min="0" max="100" value="80"></div>
+  <div class="setrow"><label>배경음</label><input id="rng-music" type="range" min="0" max="100" value="55"></div>
+  <div class="setrow"><label>진동</label><button id="tg-vib" class="tgl">켬</button></div>
+  <div class="setrow"><label>이펙트 품질</label><button id="tg-fxq" class="tgl">높음</button></div>
+  <div class="setrow"><label>섬광 줄이기</label><button id="tg-flash" class="tgl">끔</button></div>
+  <div class="setrow"><label>흔들림 줄이기</label><button id="tg-shake" class="tgl">끔</button></div>
+  <div class="setrow"><label>고대비 탄환</label><button id="tg-hc" class="tgl">끔</button></div>
+  <div class="setrow"><label>히트박스 항상 표시</label><button id="tg-hb" class="tgl">끔</button></div>
+  <button id="st-full" class="btn small">전체 화면 전환</button>
+  <button id="st-reset" class="btn small warn">저장 데이터 초기화</button>
+  <button id="st-back" class="btn primary small">← 돌아가기</button>
+</div>
+
+<div id="scr-pause" class="screen hidden">
+  <h2 class="sh">일시정지</h2>
+  <button id="pa-resume" class="btn primary">계속하기</button>
+  <button id="pa-restart" class="btn">처음부터 재시작</button>
+  <button id="pa-settings" class="btn">설정</button>
+  <button id="pa-title" class="btn small warn">타이틀로</button>
+</div>
+
+<div id="scr-over" class="screen hidden">
+  <h2 class="sh" style="color:var(--red)">GAME OVER</h2>
+  <p class="sub">칼리스-9, 신호 소실…</p>
+  <div id="ov-score" class="bigscore">0</div>
+  <p id="ov-hi" class="his">최고 기록 0</p>
+  <span id="ov-new" class="badge-new hidden">신기록!</span>
+  <button id="ov-retry" class="btn primary">다시 도전</button>
+  <button id="ov-title" class="btn small">타이틀로</button>
+</div>
+
+<div id="scr-result" class="screen hidden">
+  <h2 class="sh" id="rs-title-text" style="color:var(--cyan)">균열 봉인 완료</h2>
+  <span id="rs-new" class="badge-new hidden">신기록!</span>
+  <div id="rs-lines"></div>
+  <button id="rs-retry" class="btn primary">한 번 더</button>
+  <button id="rs-quit" class="btn small">타이틀로</button>
+</div>
+
+<div id="scr-rotate" class="screen hidden">
+  <div class="rot">📱↻</div>
+  <h2 class="sh">세로 모드로 돌려주세요</h2>
+  <p class="sub">게임 상태는 안전하게 보존됩니다.</p>
+</div>
+
+<div id="scr-test" class="screen hidden">
+  <h2 class="sh">자체 테스트</h2>
+  <p id="test-sum" class="sub">실행 중…</p>
+  <div id="test-list"></div>
+  <button id="ts-back" class="btn small">타이틀로</button>
+</div>
+
+<script>
