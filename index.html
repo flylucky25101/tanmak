@@ -2603,9 +2603,9 @@ Object.assign(Game.prototype,{
     ctx.font=FONT.n16;
     ctx.fillStyle=(r.mult>=2)?PAL.gold:PAL.dim;
     ctx.fillText('x'+r.mult.toFixed(2),CFG.W-58,15);
-    ctx.textAlign='left';
+    ctx.textAlign='right';
     ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
-    ctx.fillText(this.diff.label+(this.mode==='practice'?' · 연습':''),CFG.W-160,34);
+    ctx.fillText(this.diff.label+(this.mode==='practice'?' · 연습':''),CFG.W-12,34);
     /* 목숨 */
     var i;
     for(i=0;i<r.lives;i++){
@@ -2623,6 +2623,7 @@ Object.assign(Game.prototype,{
       ctx.moveTo(bx,35); ctx.lineTo(bx+5,41); ctx.lineTo(bx,47); ctx.lineTo(bx-5,41);
       ctx.closePath(); ctx.fill();
     }
+    ctx.textAlign='left';
     ctx.font=FONT.n12; ctx.fillStyle=PAL.dim;
     ctx.fillText('G '+r.graze,222,35);
     /* 보스 바 */

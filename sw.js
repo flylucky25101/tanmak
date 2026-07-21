@@ -1,6 +1,6 @@
 /* LUMENFALL 서비스 워커 — 오프라인 캐시 (선택 사항, index.html 단독으로도 동작) */
 'use strict';
-var CACHE='lumenfall-v1';
+var CACHE='lumenfall-v2';
 var ASSETS=['./','./index.html','./manifest.webmanifest'];
 
 self.addEventListener('install',function(e){
