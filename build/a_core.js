@@ -10,7 +10,9 @@ const SAVE_KEY='lumenfall.v1';
 
 /* ======================= [1] 설정/상수 ======================= */
 const CFG={
-  W:360, H:780, HUD_H:52, DPR_MAX:2, DT_MAX:1/30,
+  W:360, H:780, HUD_H:58, DPR_MAX:2, DT_MAX:1/30,
+  HITSTOP:{ kill:0.045, big:0.075, hit:0.11, phase:0.12, factor:0.18, max:0.14 },
+  CHAIN:{ window:2.4, showAt:3 },
   PLAYER:{ speed:300, focusMul:0.42, hitR:3, grazeR:16, fireInt:0.085,
     respawnInvuln:3.0, hitClearR:150, startLives:3, maxLives:6,
     startBombs:3, maxBombs:6, refillBombs:3, minY:88, maxYPad:20, size:13 },
@@ -20,7 +22,7 @@ const CFG={
   MULT:{ max:3.0, kill:0.02, hitKeep:0.6 },
   EXTENDS:[250000,700000,1500000],
   ITEM:{ gemBase:100, fall:96, magnetR:70, magnetV:430, lineY:230, collectR:26 },
-  POOL:{ eb:1300, pb:170, part:430, item:90, en:48, laser:12 },
+  POOL:{ eb:1300, pb:170, part:520, item:90, en:48, laser:12, txt:44 },
   PART_HIGH:360, PART_LOW:130,
   CULL:44, EB_LIFE:13,
   BOSS_Y:128,

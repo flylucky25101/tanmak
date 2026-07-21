@@ -19,27 +19,6 @@ const FONT={
   n22:'800 22px system-ui,sans-serif',
   n26:'800 26px system-ui,sans-serif'
 };
-
-/* HUD 하단 텍스트는 실제 폭을 재서 배치한다. */
-function formatHudCount(n){
-  n=Math.max(0,Math.floor(+n||0));
-  if(n<10000) return String(n);
-  if(n<1000000) return (n<100000?Math.floor(n/100)/10:Math.floor(n/1000))+'K';
-  if(n<1000000000) return (n<10000000?Math.floor(n/100000)/10:Math.floor(n/1000000))+'M';
-  return Math.min(999,Math.floor(n/1000000000))+'B';
-}
-function computeHudMetaLayout(ctx,graze,modeLabel){
-  var right=CFG.W-12, gap=8, minGrazeX=206, maxModeWidth=86;
-  ctx.font=FONT.n10;
-  var modeWidth=Math.min(maxModeWidth,ctx.measureText(modeLabel).width);
-  var modeLeft=right-modeWidth;
-  var grazeText='G '+formatHudCount(graze);
-  ctx.font=FONT.n12;
-  var grazeWidth=ctx.measureText(grazeText).width;
-  var grazeX=Math.max(minGrazeX,modeLeft-gap-grazeWidth);
-  return { grazeText:grazeText, grazeX:grazeX, grazeRight:grazeX+grazeWidth,
-    modeLeft:modeLeft, modeRight:right, modeMaxWidth:maxModeWidth, gap:gap };
-}
 Object.assign(Game.prototype,{
   render:function(){
     var ctx=this.ctx, v=this.view||{scale:1,dpr:1};
@@ -64,6 +43,7 @@ Object.assign(Game.prototype,{
       this.drawEBs(ctx);
       this.drawLasers(ctx);
       this.drawParts(ctx);
+      this.drawTxts(ctx);
       ctx.restore();
       this.drawHUD(ctx);
     }
@@ -131,12 +111,25 @@ Object.assign(Game.prototype,{
     for(var i=0;i<this.items.length;i++){
       var it=this.items[i];
       var sp=this.sprites.item(it.type);
+      var bomb=(it.type===1);
       ctx.save();
       ctx.translate(it.x,it.y);
-      ctx.rotate(Math.sin(it.t*4)*0.4);
+      /* 회전하는 사각 포획 링 — '주울 수 있는 것'이라는 신호(탄환엔 없음) */
+      ctx.save();
+      ctx.rotate(it.t*2.2);
+      ctx.globalAlpha=0.5+0.25*Math.sin(it.t*6);
+      ctx.strokeStyle=bomb?PAL.gold:PAL.green;
+      ctx.lineWidth=1.4;
+      var rr=bomb?15:12;
+      ctx.strokeRect(-rr,-rr,rr*2,rr*2);
+      ctx.restore();
+      /* 본체는 회전하지 않음 — 글자(P/B)가 항상 읽혀야 하므로 상하 바운스만 */
+      ctx.globalAlpha=1;
+      ctx.translate(0,Math.sin(it.t*5)*1.5);
       ctx.drawImage(sp.cv,-sp.hw,-sp.hh);
       ctx.restore();
     }
+    ctx.globalAlpha=1;
   },
   drawEnemies:function(ctx){
     for(var i=0;i<this.en.length;i++){
@@ -149,28 +142,73 @@ Object.assign(Game.prototype,{
         continue;
       }
       ctx.save();
-      ctx.translate(e.x,e.y);
+      /* 넉백 + 피격 스쿼시(시각 전용) */
+      ctx.translate(e.x+e.kbx,e.y+e.kby);
+      if(e.squash>0){
+        var sq=e.squash*0.22;
+        ctx.scale(1+sq,1-sq);
+      }
       if(e.type==='drone'){
-        ctx.rotate(e.t*2);
-        ctx.fillStyle=PAL.steel;
+        /* 정찰 드론: 회전 링 + 육각 코어 + 단안 센서 */
+        ctx.save();
+        ctx.rotate(e.t*1.6);
+        ctx.strokeStyle=PAL.violet; ctx.lineWidth=2;
         ctx.beginPath();
-        ctx.moveTo(0,-e.r); ctx.lineTo(e.r,0); ctx.lineTo(0,e.r); ctx.lineTo(-e.r,0);
+        for(var d=0;d<3;d++){
+          var da=d*TAU/3;
+          ctx.moveTo(Math.cos(da)*e.r*0.75,Math.sin(da)*e.r*0.75);
+          ctx.lineTo(Math.cos(da)*(e.r+4),Math.sin(da)*(e.r+4));
+        }
+        ctx.stroke();
+        ctx.globalAlpha=0.55;
+        ctx.beginPath(); ctx.arc(0,0,e.r+4,0,TAU); ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle='#2b3566';
+        ctx.beginPath();
+        for(var h2=0;h2<6;h2++){
+          var a2=h2*TAU/6+Math.PI/6;
+          var x2=Math.cos(a2)*e.r*0.85, y2=Math.sin(a2)*e.r*0.85;
+          if(h2===0) ctx.moveTo(x2,y2); else ctx.lineTo(x2,y2);
+        }
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle=PAL.violet; ctx.lineWidth=2; ctx.stroke();
-        ctx.rotate(-e.t*2);
+        ctx.strokeStyle=PAL.steel; ctx.lineWidth=1.5; ctx.stroke();
+        /* 센서 아이 — 조준 중일 때 붉게 맥동 */
+        var pulse=0.6+0.4*Math.sin(e.t*7);
         ctx.fillStyle=PAL.red;
-        ctx.beginPath(); ctx.arc(0,0,3,0,TAU); ctx.fill();
+        ctx.globalAlpha=pulse;
+        ctx.beginPath(); ctx.ellipse(0,0,4.6,3,0,0,TAU); ctx.fill();
+        ctx.globalAlpha=1;
+        ctx.fillStyle=PAL.white;
+        ctx.beginPath(); ctx.arc(0,0,1.5,0,TAU); ctx.fill();
       }else if(e.type==='darter'){
+        /* 돌격기: 후퇴익 + 엔진 화염 */
         var ang=Math.atan2(e.vy,e.vx)+Math.PI/2;
         ctx.rotate(ang);
-        ctx.fillStyle='#c9d4f6';
+        ctx.globalAlpha=0.75;
+        ctx.fillStyle=PAL.orange;
         ctx.beginPath();
-        ctx.moveTo(0,-e.r-4); ctx.lineTo(e.r*0.7,e.r); ctx.lineTo(0,e.r*0.5); ctx.lineTo(-e.r*0.7,e.r);
+        ctx.moveTo(-2.4,e.r*0.7); ctx.lineTo(0,e.r+7+Math.sin(e.t*30)*2.5); ctx.lineTo(2.4,e.r*0.7);
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle=PAL.orange; ctx.lineWidth=1.6; ctx.stroke();
+        ctx.globalAlpha=1;
+        ctx.fillStyle='#aeb9e0';
+        ctx.beginPath();
+        ctx.moveTo(0,-e.r-5);
+        ctx.lineTo(e.r*0.5,-e.r*0.1);
+        ctx.lineTo(e.r*1.05,e.r*0.85);
+        ctx.lineTo(e.r*0.3,e.r*0.5);
+        ctx.lineTo(0,e.r*0.75);
+        ctx.lineTo(-e.r*0.3,e.r*0.5);
+        ctx.lineTo(-e.r*1.05,e.r*0.85);
+        ctx.lineTo(-e.r*0.5,-e.r*0.1);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle=PAL.orange; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.fillStyle=PAL.red;
+        ctx.beginPath(); ctx.ellipse(0,-e.r*0.35,2,3.4,0,0,TAU); ctx.fill();
       }else if(e.type==='weaver'){
-        ctx.rotate(Math.sin(e.t*2)*0.3);
-        ctx.fillStyle='#5a4d8f';
+        /* 포탑형 부유체: 육각 장갑 + 궤도 노드 3개 + 회전 코어 */
+        ctx.save();
+        ctx.rotate(Math.sin(e.t*1.5)*0.22);
+        ctx.fillStyle='#3d3468';
         ctx.beginPath();
         for(var h=0;h<6;h++){
           var a=h*TAU/6;
@@ -178,36 +216,78 @@ Object.assign(Game.prototype,{
           if(h===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
         }
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle=PAL.violet; ctx.lineWidth=2; ctx.stroke();
+        ctx.strokeStyle=PAL.violet; ctx.lineWidth=2.2; ctx.stroke();
+        /* 내부 장갑 라인 */
+        ctx.strokeStyle='rgba(176,108,255,0.5)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.arc(0,0,e.r*0.62,0,TAU); ctx.stroke();
+        ctx.restore();
+        /* 궤도 노드 */
+        for(var nn=0;nn<3;nn++){
+          var na=nn*TAU/3+e.t*2.2;
+          var nx=Math.cos(na)*(e.r+5), ny=Math.sin(na)*(e.r+5);
+          ctx.fillStyle=PAL.orange;
+          ctx.beginPath(); ctx.arc(nx,ny,2.6,0,TAU); ctx.fill();
+        }
+        /* 발사 직전 차징 코어 */
+        var chg=U.clamp(1-e.fireT/0.5,0,1);
         ctx.fillStyle=PAL.orange;
-        ctx.beginPath(); ctx.arc(0,0,4,0,TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,0,3.2+chg*2.6,0,TAU); ctx.fill();
+        ctx.fillStyle=PAL.white;
+        ctx.beginPath(); ctx.arc(0,0,1.6+chg*1.2,0,TAU); ctx.fill();
       }else if(e.type==='fort'){
-        ctx.fillStyle='#3d4468';
-        pathRound(ctx,-e.r,-e.r,e.r*2,e.r*2,4); ctx.fill();
-        ctx.strokeStyle=PAL.gold; ctx.lineWidth=2;
-        pathRound(ctx,-e.r,-e.r,e.r*2,e.r*2,4); ctx.stroke();
+        /* 중장 포대: 장갑판 + 경고 스트라이프 + 회전 포탑 */
+        ctx.fillStyle='#333b5e';
+        pathRound(ctx,-e.r,-e.r,e.r*2,e.r*2,5); ctx.fill();
+        /* 경고 사선 스트라이프 */
         ctx.save();
-        ctx.rotate(e.t*0.7);
-        ctx.strokeStyle=PAL.gold; ctx.globalAlpha=0.7;
-        ctx.strokeRect(-e.r*0.55,-e.r*0.55,e.r*1.1,e.r*1.1);
+        ctx.beginPath();
+        pathRound(ctx,-e.r,-e.r,e.r*2,e.r*2,5);
+        ctx.clip();
+        ctx.globalAlpha=0.35; ctx.strokeStyle=PAL.gold; ctx.lineWidth=4;
+        ctx.beginPath();
+        for(var sx=-e.r*2;sx<e.r*2;sx+=10){
+          ctx.moveTo(sx,-e.r); ctx.lineTo(sx+e.r*2,e.r);
+        }
+        ctx.stroke();
+        ctx.restore();
+        ctx.strokeStyle=PAL.gold; ctx.lineWidth=2.2;
+        pathRound(ctx,-e.r,-e.r,e.r*2,e.r*2,5); ctx.stroke();
+        /* 모서리 리벳 */
+        ctx.fillStyle=PAL.steel;
+        var rv=e.r-4.5;
+        ctx.beginPath();
+        ctx.arc(-rv,-rv,1.8,0,TAU); ctx.arc(rv,-rv,1.8,0,TAU);
+        ctx.arc(-rv,rv,1.8,0,TAU); ctx.arc(rv,rv,1.8,0,TAU);
+        ctx.fill();
+        /* 회전 포탑 */
+        ctx.save();
+        ctx.rotate(e.t*0.9);
+        ctx.fillStyle='#5a6390';
+        pathRound(ctx,-e.r*0.42,-e.r*0.42,e.r*0.84,e.r*0.84,3); ctx.fill();
+        ctx.strokeStyle=PAL.gold; ctx.lineWidth=1.4; ctx.stroke();
+        ctx.fillStyle=PAL.red;
+        ctx.fillRect(-1.8,-e.r*0.95,3.6,e.r*0.55);
         ctx.restore();
         ctx.fillStyle=PAL.red;
-        ctx.beginPath(); ctx.arc(0,0,5,0,TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,0,4,0,TAU); ctx.fill();
+        ctx.fillStyle=PAL.white;
+        ctx.beginPath(); ctx.arc(0,0,1.7,0,TAU); ctx.fill();
       }
       if(e.hitFlash>0){
-        ctx.globalAlpha=Math.min(1,e.hitFlash*9);
+        ctx.globalAlpha=Math.min(1,e.hitFlash*10);
         ctx.fillStyle='#ffffff';
-        ctx.beginPath(); ctx.arc(0,0,e.r+2,0,TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,0,e.r+2.5,0,TAU); ctx.fill();
         ctx.globalAlpha=1;
       }
       ctx.restore();
       /* 소형 HP 바(중형 이상) */
       if((e.type==='weaver'||e.type==='fort')&&e.hp<e.mhp){
         var w=e.r*2, f=Math.max(0,e.hp/e.mhp);
-        ctx.fillStyle='rgba(0,0,0,0.5)';
-        ctx.fillRect(e.x-w/2,e.y-e.r-8,w,3);
-        ctx.fillStyle=PAL.green;
-        ctx.fillRect(e.x-w/2,e.y-e.r-8,w*f,3);
+        var bx=e.x+e.kbx-w/2, by=e.y+e.kby-e.r-9;
+        ctx.fillStyle='rgba(0,0,0,0.65)';
+        ctx.fillRect(bx-1,by-1,w+2,5);
+        ctx.fillStyle=(f>0.35)?PAL.green:PAL.red;
+        ctx.fillRect(bx,by,w*f,3);
       }
     }
   },
@@ -278,6 +358,12 @@ Object.assign(Game.prototype,{
       ctx.globalAlpha=0.6*(1-B.swT/1.5);
       ctx.lineWidth=2;
       ctx.beginPath(); ctx.arc(0,0,B.r+8+B.swT*60,0,TAU); ctx.stroke();
+    }
+    /* 피격 플래시 — 보스에 탄이 박히는 감각 */
+    if(B.flash>0){
+      ctx.globalAlpha=Math.min(0.85,B.flash*12);
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.arc(0,0,B.r*0.9,0,TAU); ctx.fill();
     }
     ctx.restore();
     ctx.globalAlpha=1;
@@ -397,6 +483,24 @@ Object.assign(Game.prototype,{
         ctx.moveTo(p.x,p.y-pr-5); ctx.lineTo(p.x,p.y-pr+3);
         ctx.moveTo(p.x,p.y+pr-3); ctx.lineTo(p.x,p.y+pr+5);
         ctx.stroke();
+      }else if(p.kind===PK.FLASH){
+        var fr=p.size*(0.45+0.75*(1-f));
+        ctx.globalAlpha=p.a*f*f;
+        ctx.fillStyle=p.color;
+        ctx.beginPath(); ctx.arc(p.x,p.y,fr,0,TAU); ctx.fill();
+        ctx.globalAlpha=p.a*f;
+        ctx.fillStyle=PAL.white;
+        ctx.beginPath(); ctx.arc(p.x,p.y,fr*0.42,0,TAU); ctx.fill();
+      }else if(p.kind===PK.SHARD){
+        ctx.save();
+        ctx.globalAlpha=p.a*Math.min(1,f*2.2);
+        ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        ctx.fillStyle=p.color;
+        ctx.beginPath();
+        ctx.moveTo(0,-p.size); ctx.lineTo(p.size*0.62,p.size*0.5); ctx.lineTo(-p.size*0.5,p.size*0.7);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle=PAL.orange; ctx.lineWidth=1; ctx.stroke();
+        ctx.restore();
       }else if(p.kind===PK.SPARK){
         ctx.globalAlpha=p.a*f;
         ctx.strokeStyle=p.color; ctx.lineWidth=p.size*0.8;
@@ -412,80 +516,150 @@ Object.assign(Game.prototype,{
     }
     ctx.globalAlpha=1;
   },
+  /* 목숨 아이콘 = 플레이어 기체 미니어처 (무엇을 뜻하는지 즉시 읽히도록) */
+  _iconShip:function(ctx,x,y,s,color){
+    ctx.save();
+    ctx.translate(x,y); ctx.scale(s,s);
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(0,-6); ctx.lineTo(4.2,2); ctx.lineTo(1.8,4); ctx.lineTo(0,2.6);
+    ctx.lineTo(-1.8,4); ctx.lineTo(-4.2,2);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  },
+  /* 폭탄 아이콘 = 둥근 폭탄 본체 + 심지 + 불꽃 */
+  _iconBomb:function(ctx,x,y,s,color){
+    ctx.save();
+    ctx.translate(x,y); ctx.scale(s,s);
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(0,1.4,4.6,0,TAU); ctx.fill();
+    ctx.fillRect(-1.3,-4.6,2.6,2.4);
+    ctx.strokeStyle=color; ctx.lineWidth=1.3; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(0.6,-4.4); ctx.quadraticCurveTo(3.4,-6.4,2.4,-8.2);
+    ctx.stroke();
+    ctx.fillStyle=PAL.white;
+    ctx.beginPath(); ctx.arc(2.2,-8.8,1.5,0,TAU); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.arc(1.6,2.6,1.7,0,TAU); ctx.fill();
+    ctx.restore();
+  },
   drawHUD:function(ctx){
-    var r=this.run;
-    ctx.fillStyle='rgba(5,8,20,0.72)';
-    ctx.fillRect(0,0,CFG.W,CFG.HUD_H);
-    ctx.strokeStyle='rgba(83,242,255,0.25)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(0,CFG.HUD_H+0.5); ctx.lineTo(CFG.W,CFG.HUD_H+0.5); ctx.stroke();
+    var r=this.run, i;
+    var H=CFG.HUD_H;
+    ctx.fillStyle='rgba(5,8,20,0.8)';
+    ctx.fillRect(0,0,CFG.W,H);
+    ctx.strokeStyle='rgba(83,242,255,0.28)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,H+0.5); ctx.lineTo(CFG.W,H+0.5); ctx.stroke();
     ctx.textBaseline='top';
+
+    /* ── 1행: SCORE(좌) / HI(우) ── */
     ctx.textAlign='left';
     ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
-    ctx.fillText('SCORE',12,5);
+    ctx.fillText('SCORE',10,4);
+    ctx.textAlign='right';
+    ctx.fillText('HI '+U.fmtScore(Math.max(this.save.hi[this.diffKey]||0,r.score)),CFG.W-10,4);
+
+    /* ── 2행: 점수값(좌) / 배율(우) ── */
+    ctx.textAlign='left';
     ctx.font=FONT.n18; ctx.fillStyle=PAL.ink;
-    ctx.fillText(U.fmtScore(r.score),12,15);
+    ctx.fillText(U.fmtScore(r.score),10,14);
     ctx.textAlign='right';
-    ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
-    ctx.fillText('HI '+U.fmtScore(Math.max(this.save.hi[this.diffKey]||0,r.score)),CFG.W-58,5);
     ctx.font=FONT.n16;
-    ctx.fillStyle=(r.mult>=2)?PAL.gold:PAL.dim;
-    ctx.fillText('x'+r.mult.toFixed(2),CFG.W-58,15);
-    var modeLabel=this.diff.label+(this.mode==='practice'?' · 연습':'');
-    var meta=computeHudMetaLayout(ctx,r.graze,modeLabel);
-    ctx.textAlign='right';
-    ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
-    ctx.fillText(modeLabel,meta.modeRight,34,meta.modeMaxWidth);
-    /* 목숨 */
-    var i;
-    for(i=0;i<r.lives;i++){
-      var lx=14+i*15;
-      ctx.fillStyle=PAL.cyan;
-      ctx.beginPath();
-      ctx.moveTo(lx,36); ctx.lineTo(lx+5,46); ctx.lineTo(lx-5,46);
-      ctx.closePath(); ctx.fill();
-    }
-    /* 폭탄 */
-    for(i=0;i<r.bombs;i++){
-      var bx=118+i*15;
-      ctx.fillStyle=PAL.gold;
-      ctx.beginPath();
-      ctx.moveTo(bx,35); ctx.lineTo(bx+5,41); ctx.lineTo(bx,47); ctx.lineTo(bx-5,41);
-      ctx.closePath(); ctx.fill();
-    }
+    ctx.fillStyle=(r.mult>=2)?PAL.gold:(r.mult>1.3?PAL.cyan:PAL.dim);
+    ctx.fillText('×'+r.mult.toFixed(2),CFG.W-10,15);
+
+    /* ── 3행: 목숨 / 폭탄 / 그레이즈 / 난이도 (겹침 없는 고정 그리드) ── */
+    var ROW=37;
     ctx.textAlign='left';
-    ctx.font=FONT.n12; ctx.fillStyle=PAL.dim;
-    ctx.fillText(meta.grazeText,meta.grazeX,35);
-    /* 보스 바 */
+    /* 목숨: 기체 아이콘 + LIFE×N */
+    this._iconShip(ctx,17,ROW+8,1.15,r.lives>0?PAL.cyan:PAL.dim);
+    ctx.font=FONT.n14;
+    ctx.fillStyle=(r.lives<=1)?PAL.red:PAL.ink;
+    ctx.fillText('×'+r.lives,26,ROW+1);
+    ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
+    ctx.fillText('LIFE',48,ROW+4);
+    /* 폭탄: 폭탄 아이콘 + BOMB×N */
+    this._iconBomb(ctx,95,ROW+8,1.1,r.bombs>0?PAL.gold:PAL.dim);
+    ctx.font=FONT.n14;
+    ctx.fillStyle=(r.bombs>0)?PAL.ink:PAL.dim;
+    ctx.fillText('×'+r.bombs,104,ROW+1);
+    ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
+    ctx.fillText('BOMB',126,ROW+4);
+    /* 그레이즈 */
+    ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
+    ctx.fillText('GRAZE',174,ROW+4);
+    ctx.font=FONT.n14; ctx.fillStyle=PAL.cyan;
+    ctx.fillText(String(r.graze),216,ROW+1);
+    /* 난이도(우측 정렬, PAUSE 버튼과 겹치지 않도록 3행에 배치) */
+    ctx.textAlign='right';
+    ctx.font=FONT.n10;
+    ctx.fillStyle=(this.diffKey==='abyss')?PAL.pink:PAL.dim;
+    ctx.fillText(this.diff.label+(this.mode==='practice'?' 연습':''),CFG.W-10,ROW+4);
+
+    /* ── 체인 콤보 (3 이상일 때만, 보스바와 겹치지 않게 화면 좌측 중단) ── */
+    if(r.chain>=CFG.CHAIN.showAt){
+      var cf=U.clamp(r.chainT/CFG.CHAIN.window,0,1);
+      var cy=this.boss?H+46:H+16;
+      ctx.textAlign='left';
+      ctx.globalAlpha=0.55+0.45*cf;
+      ctx.font=FONT.n16; ctx.fillStyle=(r.chain>=10)?PAL.gold:PAL.cyan;
+      ctx.fillText(r.chain+' CHAIN',10,cy);
+      ctx.fillStyle='rgba(83,242,255,0.28)';
+      ctx.fillRect(10,cy+18,64*cf,2);
+      ctx.globalAlpha=1;
+    }
+
+    /* ── 보스 정보 바 ── */
     var B=this.boss;
     if(B&&(B.state==='fight'||B.state==='switch'||B.state==='dying')){
-      ctx.font=FONT.n13; ctx.fillStyle=PAL.ink;
       ctx.textAlign='left';
-      ctx.fillText(B.def.name,12,CFG.HUD_H+6);
+      ctx.font=FONT.n13; ctx.fillStyle=PAL.ink;
+      ctx.fillText(B.def.name,10,H+5);
+      /* 남은 페이즈 핍 */
       var total=B.def.phases.length;
-      for(i=0;i<total-1-B.phaseIdx;i++){
-        var px=CFG.W-20-i*13;
-        ctx.fillStyle=B.def.clr;
+      for(i=0;i<total;i++){
+        var px=CFG.W-16-i*12;
+        var done=(i<B.phaseIdx);
+        ctx.fillStyle=done?'rgba(139,147,201,0.35)':B.def.clr;
         ctx.beginPath();
-        ctx.moveTo(px,CFG.HUD_H+8); ctx.lineTo(px+4,CFG.HUD_H+13);
-        ctx.lineTo(px,CFG.HUD_H+18); ctx.lineTo(px-4,CFG.HUD_H+13);
+        ctx.moveTo(px,H+7); ctx.lineTo(px+3.5,H+11.5);
+        ctx.lineTo(px,H+16); ctx.lineTo(px-3.5,H+11.5);
         ctx.closePath(); ctx.fill();
       }
+      var barY=H+21, barW=CFG.W-20;
       var f=(B.state==='fight')?U.clamp(B.hp/B.maxHp,0,1):0;
-      ctx.fillStyle='rgba(0,0,0,0.55)';
-      pathRound(ctx,12,CFG.HUD_H+22,CFG.W-24,7,3); ctx.fill();
+      var gf=(B.state==='fight')?U.clamp(B.ghost/B.maxHp,0,1):0;
+      ctx.fillStyle='rgba(0,0,0,0.6)';
+      pathRound(ctx,10,barY,barW,8,4); ctx.fill();
+      /* 고스트(최근 피해) 잔상 */
+      if(gf>f){
+        ctx.fillStyle='rgba(255,255,255,0.5)';
+        pathRound(ctx,10,barY,barW*gf,8,4); ctx.fill();
+      }
       if(f>0){
         ctx.fillStyle=(f>0.5)?PAL.green:(f>0.25?PAL.gold:PAL.red);
-        pathRound(ctx,12,CFG.HUD_H+22,(CFG.W-24)*f,7,3); ctx.fill();
+        pathRound(ctx,10,barY,barW*f,8,4); ctx.fill();
+        if(f<0.25){
+          ctx.globalAlpha=0.25+0.25*Math.sin(this.bgT*11);
+          ctx.fillStyle=PAL.white;
+          pathRound(ctx,10,barY,barW*f,8,4); ctx.fill();
+          ctx.globalAlpha=1;
+        }
       }
       if(B.state==='fight'){
         var ph=B.def.phases[B.phaseIdx];
         var tl=Math.max(0,ph.time-B.phT);
-        ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
+        ctx.font=FONT.n10;
+        ctx.fillStyle=(tl<10)?PAL.red:PAL.dim;
         ctx.textAlign='right';
-        ctx.fillText(Math.ceil(tl)+'s',CFG.W-12,CFG.HUD_H+6);
+        ctx.fillText(Math.ceil(tl)+'s',CFG.W-10,H+33);
         ctx.textAlign='left';
+        ctx.fillStyle=PAL.dim;
+        ctx.fillText('PHASE '+(B.phaseIdx+1)+'/'+total+' · '+ph.name,10,H+33);
       }
     }
+
     /* 초반 조작 힌트 */
     if(this.mode==='run'&&this.stageT<6&&this.seq===''){
       ctx.globalAlpha=U.clamp(6-this.stageT,0,1)*0.8;
@@ -494,6 +668,26 @@ Object.assign(Game.prototype,{
       ctx.fillText('화면을 드래그해 이동',CFG.W/2,CFG.H-64);
       ctx.globalAlpha=1;
     }
+  },
+  drawTxts:function(ctx){
+    if(!this.txts.length) return;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(var i=0;i<this.txts.length;i++){
+      var p=this.txts[i];
+      var f=p.t/p.life;
+      var sc=(f<0.16)?(0.6+2.5*f):1;
+      ctx.save();
+      ctx.globalAlpha=(f>0.6)?U.clamp((1-f)/0.4,0,1):1;
+      ctx.translate(p.x,p.y);
+      ctx.scale(sc,sc);
+      ctx.font='800 '+p.size+'px system-ui,sans-serif';
+      ctx.lineWidth=3; ctx.strokeStyle='rgba(2,4,12,0.9)';
+      ctx.strokeText(p.text,0,0);
+      ctx.fillStyle=p.color;
+      ctx.fillText(p.text,0,0);
+      ctx.restore();
+    }
+    ctx.globalAlpha=1;
   },
   drawBanner:function(ctx){
     var b=this.banner;

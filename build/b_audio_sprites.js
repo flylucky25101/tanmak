@@ -161,6 +161,16 @@ AudioMgr.prototype={
 };
 
 /* ======================= [6] 스프라이트 공장 (오프스크린 사전 렌더) ======================= */
+function pathRoundSp(ctx,x,y,w,h,r){
+  if(r>w/2) r=w/2; if(r>h/2) r=h/2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
 function SpriteKit(createCanvas){
   this.cc=createCanvas;
   this.cache={};
@@ -225,32 +235,44 @@ SpriteKit.prototype={
     this.cache[key]=sp;
     return sp;
   },
+  /* 아이템은 '탄환처럼 보이지 않는 것'이 최우선.
+     - 탄환: 원형 + 발광 그라디언트 + 흰 코어
+     - 아이템: 각진 상자/사각 프레임 + 무광 솔리드 + 검은 테두리 + 글자 라벨 */
   item:function(type){
     var key='it_'+type;
     if(this.cache[key]) return this.cache[key];
-    var col=(type===1)?PAL.gold:PAL.green;
-    var big=(type===1);
-    var side=big?30:22;
+    var bomb=(type===1);
+    var col=bomb?PAL.gold:PAL.green;
+    var side=bomb?34:26;
     var sp=this._mk(side,side,function(ctx,w,h){
-      var c=w/2, r=big?9:6;
-      var g=ctx.createRadialGradient(c,c,1,c,c,c);
-      g.addColorStop(0,col); g.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.globalAlpha=0.45; ctx.fillStyle=g;
-      ctx.beginPath(); ctx.arc(c,c,c-1,0,TAU); ctx.fill();
-      ctx.globalAlpha=1;
+      var c=w/2;
+      var box=bomb?11:8.5;
+      /* 바깥 검은 아웃라인 — 배경/탄환과 분리 */
+      ctx.fillStyle='rgba(0,0,0,0.85)';
+      pathRoundSp(ctx,c-box-2.5,c-box-2.5,(box+2.5)*2,(box+2.5)*2,3);
+      ctx.fill();
+      /* 본체: 무광 솔리드 사각 */
       ctx.fillStyle=col;
+      pathRoundSp(ctx,c-box,c-box,box*2,box*2,2.5);
+      ctx.fill();
+      /* 안쪽 어두운 판 — 글자 대비 확보 */
+      ctx.fillStyle=bomb?'#3a2a00':'#04331d';
+      pathRoundSp(ctx,c-box+2.5,c-box+2.5,(box-2.5)*2,(box-2.5)*2,2);
+      ctx.fill();
+      /* 모서리 마커(픽업 느낌) */
+      ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.6; ctx.lineCap='round';
+      var e=box+0.5, n=box*0.45;
       ctx.beginPath();
-      ctx.moveTo(c,c-r); ctx.lineTo(c+r*0.75,c); ctx.lineTo(c,c+r); ctx.lineTo(c-r*0.75,c);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.4;
-      ctx.beginPath();
-      ctx.moveTo(c,c-r+2); ctx.lineTo(c+r*0.75-2,c); ctx.lineTo(c,c+r-2); ctx.lineTo(c-r*0.75+2,c);
-      ctx.closePath(); ctx.stroke();
-      if(big){
-        ctx.fillStyle='#3a2c00'; ctx.font='bold 9px sans-serif';
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('B',c,c+0.5);
-      }
+      ctx.moveTo(c-e,c-e+n); ctx.lineTo(c-e,c-e); ctx.lineTo(c-e+n,c-e);
+      ctx.moveTo(c+e-n,c-e); ctx.lineTo(c+e,c-e); ctx.lineTo(c+e,c-e+n);
+      ctx.moveTo(c+e,c+e-n); ctx.lineTo(c+e,c+e); ctx.lineTo(c+e-n,c+e);
+      ctx.moveTo(c-e+n,c+e); ctx.lineTo(c-e,c+e); ctx.lineTo(c-e,c+e-n);
+      ctx.stroke();
+      /* 라벨 */
+      ctx.fillStyle=col;
+      ctx.font='900 '+(bomb?13:11)+'px system-ui,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(bomb?'B':'P',c,c+0.5);
     });
     this.cache[key]=sp;
     return sp;

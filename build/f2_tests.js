@@ -83,30 +83,6 @@ const TESTS=[
   A.eq(computeViewScale(NaN,100),0.5);
   A.eq(computeViewScale(360,780),1);
 }},
-{ name:'HUD 메타 정보 겹침 방지', fn:function(A){
-  var ctx=stub2d();
-  ctx.measureText=function(text){
-    var m=/(\d+(?:\.\d+)?)px/.exec(this.font||'10px');
-    var px=m?+m[1]:10, units=0;
-    for(var i=0;i<text.length;i++) units+=(text.charCodeAt(i)>255)?1:0.62;
-    return {width:units*px};
-  };
-  var cases=[
-    {g:0,m:'STANDARD'},
-    {g:9876,m:'ABYSS'},
-    {g:123456789,m:'STANDARD · 연습'},
-    {g:Number.MAX_SAFE_INTEGER,m:'ABYSS · 연습'}
-  ];
-  for(var i=0;i<cases.length;i++){
-    var c=cases[i], L=computeHudMetaLayout(ctx,c.g,c.m);
-    A.ok(L.grazeX>=206,'그레이즈가 폭탄 영역 침범');
-    A.ok(L.grazeRight+L.gap<=L.modeLeft,'그레이즈/난이도 겹침');
-    A.ok(L.modeRight<=CFG.W-12,'난이도가 HUD 우측 경계 침범');
-  }
-  A.eq(formatHudCount(9999),'9999');
-  A.eq(formatHudCount(12345),'12.3K');
-  A.eq(formatHudCount(1234567),'1.2M');
-}},
 { name:'설정 범위 초과 정제', fn:function(A){
   var s=sanitizeSettings({sfx:5,music:-2,fxq:'weird',vib:0});
   A.eq(s.sfx,1); A.eq(s.music,0); A.eq(s.fxq,'high'); A.eq(s.vib,false);
@@ -353,12 +329,209 @@ const TESTS=[
   g.quitToTitle();
   A.eq(g.eb.length,0); A.eq(g.en.length,0);
   A.eq(g.parts.length,0); A.eq(g.items.length,0);
-  var pools=['eb','pb','part','item','en','laser'];
+  A.eq(g.txts.length,0);
+  var pools=['eb','pb','part','item','en','laser','txt'];
   for(var i=0;i<pools.length;i++){
     var p=g.pool[pools[i]];
     A.ok(p.created<=p.max,pools[i]+' 풀 상한 초과');
     A.eq(p.free.length,p.created,pools[i]+' 풀 미회수: free '+p.free.length+' / created '+p.created);
   }
+}},
+{ name:'적 스폰 파라미터 누락/오염 방어', fn:function(A){
+  var g=newHG();
+  g.startRun('standard',{seed:30}); g.director.events=[];
+  /* 파라미터를 전혀 주지 않아도 NaN 좌표가 되면 안 된다 */
+  var e=g.spawnEnemy('drone',80,150,{ty:150,holdT:99});
+  steps(g,30,1/60);
+  A.ok(isFinite(e.x)&&isFinite(e.y),'파라미터 누락 시 좌표가 NaN이 됨 (x='+e.x+')');
+  /* 완전히 빈 파라미터 */
+  var e2=g.spawnEnemy('weaver',100,180);
+  steps(g,30,1/60);
+  A.ok(isFinite(e2.x)&&isFinite(e2.y),'빈 파라미터에서 좌표 NaN');
+  /* 오염된 값 */
+  var e3=g.spawnEnemy('drone',NaN,undefined,{ty:'가나다',holdT:null,wob:{},exitVX:NaN});
+  steps(g,30,1/60);
+  A.ok(isFinite(e3.x)&&isFinite(e3.y),'오염 파라미터에서 좌표 NaN');
+  /* 알 수 없는 타입도 게임을 멈추지 않아야 한다 */
+  var e4=g.spawnEnemy('존재하지않는적',180,200,{});
+  A.ok(e4!==null&&isFinite(e4.x),'알 수 없는 타입 처리 실패');
+  steps(g,60,1/60);
+  A.ok(g.state==='GAME','비정상 스폰 후 게임이 중단됨');
+}},
+{ name:'비정상 좌표 적 자동 제거', fn:function(A){
+  var g=newHG();
+  g.startRun('standard',{seed:31}); g.director.events=[];
+  var e=g.spawnEnemy('drone',80,150,{ty:150,holdT:99,wob:0,exitVX:0});
+  A.eq(g.en.length,1);
+  e.x=NaN; /* 외부 요인으로 좌표가 깨진 상황 모의 */
+  steps(g,3,1/60);
+  A.eq(g.en.length,0,'NaN 좌표 적이 제거되지 않음(잡을 수 없는 유령 적)');
+}},
+{ name:'HUD 3행 요소 겹침 없음(최악값 기준)', fn:function(A){
+  /* 실제 렌더 코드와 동일한 좌표/폰트로 텍스트 폭을 측정해 구간 충돌을 검사.
+     최악 조건: 점수 9자리, 목숨 6, 폭탄 6, 그레이즈 5자리, ABYSS 연습 */
+  var W=CFG.W, ROW=37;
+  function tw(text,px,weight){
+    /* 보수적 폭 추정. 한글/CJK는 전각이므로 1.05em으로 크게 잡는다
+       (헤드리스 캔버스에는 한글 폰트가 없어 실측이 0에 가깝게 나오므로 여기서 보정) */
+    var w=0;
+    for(var i=0;i<text.length;i++){
+      var c=text.charCodeAt(i);
+      w+=(c>0x2E80)?px*1.05:px*(weight>=800?0.62:0.58);
+    }
+    return w;
+  }
+  var segs=[];
+  function add(name,x0,x1,row){ segs.push({name:name,x0:x0,x1:x1,row:row}); }
+  /* 1행 */
+  add('SCORE라벨',10,10+tw('SCORE',10),1);
+  var hiTxt='HI '+U.fmtScore(999999999);
+  add('HI',W-10-tw(hiTxt,10),W-10,1);
+  /* 2행 */
+  var scTxt=U.fmtScore(999999999);
+  add('점수값',10,10+tw(scTxt,18,800),2);
+  var mlTxt='×3.00';
+  add('배율',W-10-tw(mlTxt,16,800),W-10,2);
+  /* 3행 */
+  add('목숨아이콘',9,25,3);
+  add('목숨수',26,26+tw('×6',14,800),3);
+  add('LIFE',48,48+tw('LIFE',10),3);
+  add('폭탄아이콘',87,103,3);
+  add('폭탄수',104,104+tw('×6',14,800),3);
+  add('BOMB',126,126+tw('BOMB',10),3);
+  add('GRAZE라벨',176,176+tw('GRAZE',10),3);
+  add('GRAZE값',210,210+tw('99999',14,800),3);
+  var dfTxt='ABYSS 연습';
+  add('난이도',W-10-tw(dfTxt,10),W-10,3);
+  /* 보스 정보행(4행): 보스명/페이즈핍, 페이즈라벨/타이머 — 한글 포함 최장 케이스 */
+  var longestBoss='프리즘 코어 ASTERION';
+  add('보스명',10,10+tw(longestBoss,13),4);
+  add('페이즈핍',W-16-5*12-4,W-10,4);
+  var longestPhase='PHASE 5/5 · 아스테리온 각성';
+  add('페이즈라벨',10,10+tw(longestPhase,10),5);
+  add('타이머',W-10-tw('52s',10),W-10,5);
+  for(var i=0;i<segs.length;i++){
+    var s=segs[i];
+    A.ok(s.x0>=0&&s.x1<=W,s.name+' 화면 밖으로 벗어남 ('+Math.round(s.x0)+'~'+Math.round(s.x1)+')');
+    for(var j=i+1;j<segs.length;j++){
+      var t=segs[j];
+      if(s.row!==t.row) continue;
+      var overlap=(s.x0<t.x1&&t.x0<s.x1);
+      A.ok(!overlap,s.row+'행 겹침: '+s.name+'('+Math.round(s.x0)+'~'+Math.round(s.x1)+
+        ') ↔ '+t.name+'('+Math.round(t.x0)+'~'+Math.round(t.x1)+')');
+    }
+  }
+}},
+{ name:'HUD 높이 안에 3행이 들어감', fn:function(A){
+  /* 3행 시작 37 + 텍스트 높이 14 + 여유 = HUD_H 이내 */
+  A.ok(37+14+2<=CFG.HUD_H,'3행이 HUD 영역(높이 '+CFG.HUD_H+')을 넘침');
+  A.ok(CFG.PLAYER.minY>CFG.HUD_H,'플레이어가 HUD 뒤로 들어갈 수 있음');
+}},
+{ name:'히트스톱: 발동/상한/자동 해제', fn:function(A){
+  var g=newHG();
+  g.startRun('standard',{seed:20}); g.director.events=[];
+  A.eq(g.hitstop,0);
+  g.addHitstop(CFG.HITSTOP.kill);
+  A.ok(g.hitstop>0,'히트스톱 미발동');
+  g.addHitstop(999);
+  A.ok(g.hitstop<=CFG.HITSTOP.max,'히트스톱 상한 초과: '+g.hitstop);
+  /* 히트스톱 중에는 게임 시간이 느려져야 한다 */
+  var t0=g.run.time;
+  g.tick(1/60);
+  var slowed=g.run.time-t0;
+  A.ok(slowed<1/60,'히트스톱 중 시간이 느려지지 않음');
+  steps(g,30,1/60);
+  A.eq(g.hitstop,0,'히트스톱이 해제되지 않음');
+  var t1=g.run.time;
+  g.tick(1/60);
+  A.ok(Math.abs((g.run.time-t1)-1/60)<1e-9,'해제 후 정상 속도 복귀 실패');
+}},
+{ name:'체인 콤보 증가/시간 초과 리셋/피격 리셋', fn:function(A){
+  var g=newHG();
+  g.startRun('standard',{seed:21}); g.director.events=[];
+  var e1=g.spawnEnemy('drone',180,200,{ty:200,holdT:99,exitVX:0});
+  g.killEnemy(e1);
+  A.eq(g.run.chain,1);
+  var e2=g.spawnEnemy('drone',180,200,{ty:200,holdT:99,exitVX:0});
+  g.killEnemy(e2);
+  A.eq(g.run.chain,2);
+  A.eq(g.run.chainBest,2);
+  /* 윈도우 경과 후 리셋 */
+  steps(g,Math.ceil((CFG.CHAIN.window+0.3)*60),1/60);
+  A.eq(g.run.chain,0,'체인이 시간 초과로 리셋되지 않음');
+  var e3=g.spawnEnemy('drone',180,200,{ty:200,holdT:99,exitVX:0});
+  g.killEnemy(e3);
+  A.eq(g.run.chain,1);
+  g.player.invuln=0;
+  var b=g.fireEB(g.player.x,g.player.y,0,0,{}); b.delay=0;
+  g.tick(1/60);
+  A.eq(g.run.chain,0,'피격 시 체인이 끊기지 않음');
+}},
+{ name:'점수 팝업 풀 상한/회수', fn:function(A){
+  var g=newHG();
+  g.startRun('standard',{seed:22}); g.director.events=[];
+  for(var i=0;i<300;i++) g.popup(180,300,'+100',null,12);
+  A.ok(g.txts.length<=CFG.POOL.txt,'팝업 상한 초과: '+g.txts.length);
+  steps(g,120,1/60);
+  A.eq(g.txts.length,0,'팝업이 회수되지 않음');
+  A.eq(g.pool.txt.free.length,g.pool.txt.created,'팝업 풀 미회수');
+}},
+{ name:'넉백은 시각 전용(판정 궤적 불변)', fn:function(A){
+  /* 같은 seed로 두 번 시뮬레이션: 한쪽만 넉백을 강제로 주입한다.
+     넉백이 순수 시각 효과라면 두 궤적(e.x,e.y)이 완전히 같아야 한다. */
+  function traj(applyKb){
+    var g=newHG();
+    g.startRun('standard',{seed:23}); g.director.events=[];
+    var e=g.spawnEnemy('fort',180,200,{ty:200,lifeT:99});
+    var out=[];
+    for(var i=0;i<90;i++){
+      if(applyKb&&i%7===0){ e.kbx+=3; e.kby+=4; e.squash=1; }
+      g.tick(1/60);
+      out.push(e.x,e.y);
+    }
+    return {t:out,e:e};
+  }
+  var a=traj(false), b=traj(true);
+  for(var i=0;i<a.t.length;i++){
+    A.eq(b.t[i],a.t[i],'넉백이 실제 판정 좌표에 영향을 줌 @'+i);
+  }
+  /* 감쇠: 추가 피격이 없으면 0으로 수렴해야 한다 */
+  var g2=newHG();
+  g2.startRun('standard',{seed:23}); g2.director.events=[];
+  var e2=g2.spawnEnemy('fort',180,200,{ty:200,lifeT:99});
+  g2.damageEnemy(e2,1,180,210);
+  A.ok(e2.kby!==0,'넉백 미적용');
+  for(var k=0;k<60;k++){
+    for(var j=g2.pb.length-1;j>=0;j--){ g2.pool.pb.release(g2.pb[j]); g2.pb.pop(); }
+    g2.tick(1/60);
+  }
+  A.ok(Math.abs(e2.kbx)<0.1&&Math.abs(e2.kby)<0.1,
+    '넉백이 감쇠하지 않음 (kbx='+e2.kbx.toFixed(3)+', kby='+e2.kby.toFixed(3)+')');
+}},
+{ name:'보스 고스트 HP바가 실제 HP를 따라감', fn:function(A){
+  var g=newHG();
+  g.startPractice('mid','standard');
+  var guard=0;
+  while(guard++<1200&&!(g.boss&&g.boss.state==='fight')) g.tick(1/30);
+  A.ok(g.boss&&g.boss.state==='fight','보스 전투 진입 실패');
+  var B=g.boss;
+  A.eq(B.ghost,B.maxHp,'고스트 초기값 오류');
+  B.hp=B.maxHp*0.4;
+  g.tick(1/60);
+  A.ok(B.ghost>B.hp,'고스트가 즉시 따라붙음(잔상 효과 없음)');
+  steps(g,240,1/60);
+  A.ok(B.ghost<=B.hp+1,'고스트가 실제 HP까지 내려오지 않음: '+B.ghost+' vs '+B.hp);
+}},
+{ name:'파티클 상한 준수(파편·플래시 포함)', fn:function(A){
+  var g=newHG();
+  g.startRun('standard',{seed:24}); g.director.events=[];
+  for(var i=0;i<200;i++){
+    g.spawnShards(180,300,20,200);
+    g.spawnImpact(180,300);
+    g.spawnFlash(180,300,20,'#fff');
+  }
+  A.ok(g.parts.length<=CFG.POOL.part,'파티클 풀 상한 초과: '+g.parts.length);
+  A.ok(g.pool.part.created<=CFG.POOL.part,'파티클 생성 상한 초과');
 }},
 { name:'최고 점수 저장/불러오기', fn:function(A){
   var mem={};
@@ -404,8 +577,6 @@ var API={
   RNG:RNG, Game:Game, Pool:Pool,
   makeStorage:makeStorage, sanitizeSettings:sanitizeSettings, loadSaveData:loadSaveData,
   computeViewScale:computeViewScale,
-  computeHudMetaLayout:computeHudMetaLayout,
-  formatHudCount:formatHudCount,
   makeHeadlessEnv:makeHeadlessEnv,
   runSelfTests:runSelfTests,
   PATTERN_FACTORIES:PATTERN_FACTORIES,

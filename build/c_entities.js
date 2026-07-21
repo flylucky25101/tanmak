@@ -16,17 +16,20 @@ Pool.prototype.release=function(o){
 /* 탄환 이동 종류 */
 const BK={ LIN:0, ACC:1, STALL:2, SINE:3, CURVE:4 };
 /* 파티클 종류 */
-const PK={ DOT:0, SPARK:1, RING:2, FLAME:3, MARK:4 };
+const PK={ DOT:0, SPARK:1, RING:2, FLAME:3, MARK:4, SHARD:5, FLASH:6 };
 
 function newEB(){ return { x:0,y:0,vx:0,vy:0,ang:0,spd:0,acc:0,vmax:0,cur:0,
   t1:0,t2:0,spd2:0,reaimed:0,bx:0,by:0,amp:0,freq:0,phase:0,angV:0,
   t:0,life:0,delay:0,grazed:false,r:4,spr:null,kind:0,color:'pink',sz:'m' }; }
 function newPB(){ return { x:0,y:0,vx:0,vy:0,dmg:6,r:4,t:0 }; }
-function newPart(){ return { x:0,y:0,vx:0,vy:0,t:0,life:0.4,size:2,color:'#fff',kind:0,drag:0,grow:0,a:1 }; }
+function newPart(){ return { x:0,y:0,vx:0,vy:0,t:0,life:0.4,size:2,color:'#fff',kind:0,
+  drag:0,grow:0,a:1,rot:0,rotV:0,grav:0 }; }
+function newTxt(){ return { x:0,y:0,vy:-40,t:0,life:0.8,text:'',color:'#fff',size:14,pop:1 }; }
 function newItem(){ return { x:0,y:0,vx:0,vy:0,type:0,t:0 }; }
 function newLaser(){ return { x:0,y:0,ang:0,len:900,w:14,warn:0.6,active:1.0,fade:0.25,t:0,rotV:0,color:'#ff3b5f' }; }
 function newEnemy(){ return { type:'drone',x:0,y:0,vx:0,vy:0,hp:1,mhp:1,t:0,r:10,
-  fireT:0,phase:0,state:0,hitFlash:0,p:null,pat:null,dead:false }; }
+  fireT:0,phase:0,state:0,hitFlash:0,p:null,pat:null,dead:false,
+  kbx:0,kby:0,squash:0 }; }
 
 /* ======================= [8] 탄환/파티클/아이템/레이저 갱신 ======================= */
 function updateEBs(g,dt){
@@ -93,7 +96,23 @@ function updateParts(g,dt){
       continue;
     }
     if(p.drag>0){ var d=1-p.drag*dt; if(d<0)d=0; p.vx*=d; p.vy*=d; }
+    if(p.grav>0) p.vy+=p.grav*dt;
+    if(p.rotV!==0) p.rot+=p.rotV*dt;
     p.x+=p.vx*dt; p.y+=p.vy*dt;
+  }
+}
+function updateTxts(g,dt){
+  var arr=g.txts;
+  for(var i=arr.length-1;i>=0;i--){
+    var p=arr[i];
+    p.t+=dt;
+    if(p.t>=p.life){
+      g.pool.txt.release(p);
+      arr[i]=arr[arr.length-1]; arr.pop();
+      continue;
+    }
+    p.y+=p.vy*dt;
+    p.vy*=(1-2.2*dt);
   }
 }
 function updateItems(g,dt){
@@ -226,10 +245,11 @@ const ENEMY_AI={
     if(e.t>e.p.lifeT) e.dead=true;
   }
 };
+/* 작은 화면(360px 폭)에서 실루엣이 확실히 읽히도록 크기를 확보한다 */
 const ENEMY_STATS={
-  drone:{ hp:20, r:10, score:300 },
-  darter:{ hp:14, r:8, score:260 },
-  weaver:{ hp:40, r:13, score:800 },
-  fort:{ hp:160, r:20, score:3000 },
+  drone:{ hp:22, r:12, score:300 },
+  darter:{ hp:15, r:9.5, score:260 },
+  weaver:{ hp:44, r:15.5, score:800 },
+  fort:{ hp:170, r:23, score:3000 },
   emitter:{ hp:999999, r:0, score:0 }
 };
