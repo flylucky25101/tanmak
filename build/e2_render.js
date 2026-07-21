@@ -19,6 +19,27 @@ const FONT={
   n22:'800 22px system-ui,sans-serif',
   n26:'800 26px system-ui,sans-serif'
 };
+
+/* HUD 하단 텍스트는 실제 폭을 재서 배치한다. */
+function formatHudCount(n){
+  n=Math.max(0,Math.floor(+n||0));
+  if(n<10000) return String(n);
+  if(n<1000000) return (n<100000?Math.floor(n/100)/10:Math.floor(n/1000))+'K';
+  if(n<1000000000) return (n<10000000?Math.floor(n/100000)/10:Math.floor(n/1000000))+'M';
+  return Math.min(999,Math.floor(n/1000000000))+'B';
+}
+function computeHudMetaLayout(ctx,graze,modeLabel){
+  var right=CFG.W-12, gap=8, minGrazeX=206, maxModeWidth=86;
+  ctx.font=FONT.n10;
+  var modeWidth=Math.min(maxModeWidth,ctx.measureText(modeLabel).width);
+  var modeLeft=right-modeWidth;
+  var grazeText='G '+formatHudCount(graze);
+  ctx.font=FONT.n12;
+  var grazeWidth=ctx.measureText(grazeText).width;
+  var grazeX=Math.max(minGrazeX,modeLeft-gap-grazeWidth);
+  return { grazeText:grazeText, grazeX:grazeX, grazeRight:grazeX+grazeWidth,
+    modeLeft:modeLeft, modeRight:right, modeMaxWidth:maxModeWidth, gap:gap };
+}
 Object.assign(Game.prototype,{
   render:function(){
     var ctx=this.ctx, v=this.view||{scale:1,dpr:1};
@@ -409,9 +430,11 @@ Object.assign(Game.prototype,{
     ctx.font=FONT.n16;
     ctx.fillStyle=(r.mult>=2)?PAL.gold:PAL.dim;
     ctx.fillText('x'+r.mult.toFixed(2),CFG.W-58,15);
+    var modeLabel=this.diff.label+(this.mode==='practice'?' · 연습':'');
+    var meta=computeHudMetaLayout(ctx,r.graze,modeLabel);
     ctx.textAlign='right';
     ctx.font=FONT.n10; ctx.fillStyle=PAL.dim;
-    ctx.fillText(this.diff.label+(this.mode==='practice'?' · 연습':''),CFG.W-12,34);
+    ctx.fillText(modeLabel,meta.modeRight,34,meta.modeMaxWidth);
     /* 목숨 */
     var i;
     for(i=0;i<r.lives;i++){
@@ -431,7 +454,7 @@ Object.assign(Game.prototype,{
     }
     ctx.textAlign='left';
     ctx.font=FONT.n12; ctx.fillStyle=PAL.dim;
-    ctx.fillText('G '+r.graze,222,35);
+    ctx.fillText(meta.grazeText,meta.grazeX,35);
     /* 보스 바 */
     var B=this.boss;
     if(B&&(B.state==='fight'||B.state==='switch'||B.state==='dying')){

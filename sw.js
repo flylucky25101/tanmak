@@ -1,7 +1,7 @@
 /* LUMENFALL 서비스 워커 — 오프라인 캐시 (선택 사항, index.html 단독으로도 동작) */
 'use strict';
-var CACHE='lumenfall-v2';
-var ASSETS=['./','./index.html','./manifest.webmanifest'];
+var CACHE='lumenfall-620b06d497ff';
+var ASSETS=['./','./index.html','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
 
 self.addEventListener('install',function(e){
   e.waitUntil(
@@ -21,6 +21,19 @@ self.addEventListener('activate',function(e){
 });
 self.addEventListener('fetch',function(e){
   if(e.request.method!=='GET') return;
+  /* 문서 탐색은 네트워크 우선: 새 배포가 있으면 즉시 받고, 오프라인이면 캐시 사용. */
+  if(e.request.mode==='navigate'){
+    e.respondWith(
+      fetch(e.request).then(function(res){
+        if(res&&res.ok){
+          var clone=res.clone();
+          caches.open(CACHE).then(function(c){ c.put('./index.html',clone).catch(function(){}); });
+        }
+        return res;
+      }).catch(function(){ return caches.match('./index.html'); })
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function(hit){
       if(hit) return hit;

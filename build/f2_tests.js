@@ -83,6 +83,30 @@ const TESTS=[
   A.eq(computeViewScale(NaN,100),0.5);
   A.eq(computeViewScale(360,780),1);
 }},
+{ name:'HUD 메타 정보 겹침 방지', fn:function(A){
+  var ctx=stub2d();
+  ctx.measureText=function(text){
+    var m=/(\d+(?:\.\d+)?)px/.exec(this.font||'10px');
+    var px=m?+m[1]:10, units=0;
+    for(var i=0;i<text.length;i++) units+=(text.charCodeAt(i)>255)?1:0.62;
+    return {width:units*px};
+  };
+  var cases=[
+    {g:0,m:'STANDARD'},
+    {g:9876,m:'ABYSS'},
+    {g:123456789,m:'STANDARD · 연습'},
+    {g:Number.MAX_SAFE_INTEGER,m:'ABYSS · 연습'}
+  ];
+  for(var i=0;i<cases.length;i++){
+    var c=cases[i], L=computeHudMetaLayout(ctx,c.g,c.m);
+    A.ok(L.grazeX>=206,'그레이즈가 폭탄 영역 침범');
+    A.ok(L.grazeRight+L.gap<=L.modeLeft,'그레이즈/난이도 겹침');
+    A.ok(L.modeRight<=CFG.W-12,'난이도가 HUD 우측 경계 침범');
+  }
+  A.eq(formatHudCount(9999),'9999');
+  A.eq(formatHudCount(12345),'12.3K');
+  A.eq(formatHudCount(1234567),'1.2M');
+}},
 { name:'설정 범위 초과 정제', fn:function(A){
   var s=sanitizeSettings({sfx:5,music:-2,fxq:'weird',vib:0});
   A.eq(s.sfx,1); A.eq(s.music,0); A.eq(s.fxq,'high'); A.eq(s.vib,false);
@@ -380,6 +404,8 @@ var API={
   RNG:RNG, Game:Game, Pool:Pool,
   makeStorage:makeStorage, sanitizeSettings:sanitizeSettings, loadSaveData:loadSaveData,
   computeViewScale:computeViewScale,
+  computeHudMetaLayout:computeHudMetaLayout,
+  formatHudCount:formatHudCount,
   makeHeadlessEnv:makeHeadlessEnv,
   runSelfTests:runSelfTests,
   PATTERN_FACTORIES:PATTERN_FACTORIES,

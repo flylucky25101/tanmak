@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LUMENFALL 아이콘">
+  <defs>
+    <radialGradient id="bg"><stop stop-color="#0c2140"/><stop offset="1" stop-color="#04050e"/></radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#b06cff" stroke-width="12" opacity=".72"/>
+  <g filter="url(#glow)">
+    <path d="M256 169 343 256 256 343 169 256Z" fill="#53f2ff"/>
+    <path d="M256 205 307 256 256 307 205 256Z" fill="#081026"/>
+    <path d="M256 229 283 256 256 283 229 256Z" fill="#e9edff"/>
+  </g>
+  <g fill="#ffd35a">
+    <path d="m169 139 19 19-19 19-19-19Z"/>
+    <path d="m256 111 19 19-19 19-19-19Z"/>
+    <path d="m343 139 19 19-19 19-19-19Z"/>
+  </g>
+</svg>
