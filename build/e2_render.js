@@ -758,7 +758,9 @@ Object.assign(Game.prototype,{
       ctx.globalAlpha=U.clamp(6-this.stageT,0,1)*0.8;
       ctx.font=FONT.n13; ctx.fillStyle=PAL.dim;
       ctx.textAlign='center';
-      ctx.fillText('좌측 스틱 이동 · 우측 FOCUS / BOMB',CFG.W/2,CFG.H-150);
+      ctx.fillText(this.uiMode==='mobile'?
+        '좌측 스틱 이동 · 우측 FOCUS / BOMB':
+        'WASD / 방향키 · SHIFT FOCUS · SPACE BOMB',CFG.W/2,CFG.H-150);
       ctx.globalAlpha=1;
     }
   },

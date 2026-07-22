@@ -132,7 +132,11 @@ h2.sh{ margin:0 0 4px; font-size:22px; letter-spacing:2px; }
   border-radius:50%; font-weight:800; color:var(--ink); cursor:pointer;
   touch-action:none; user-select:none; -webkit-user-select:none;
 }
-body.playing #btnFocus, body.playing #btnBomb, body.playing #btnPause{ display:flex; }
+body.mobile-ui.playing #stickZone,
+body.mobile-ui.playing #btnFocus,
+body.mobile-ui.playing #btnBomb,
+body.mobile-ui.playing #btnPause{ display:flex; }
+body.desktop-ui.playing #btnPause{ display:flex; }
 #stickZone{
   left:calc(16px + var(--sal)); bottom:calc(18px + var(--sab));
   width:116px; height:116px;
@@ -141,7 +145,6 @@ body.playing #btnFocus, body.playing #btnBomb, body.playing #btnPause{ display:f
   box-shadow:0 0 24px rgba(83,242,255,0.12),inset 0 0 22px rgba(83,242,255,0.08);
   backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
 }
-body.playing #stickZone{ display:flex; }
 #stickZone::before,#stickZone::after{
   content:""; position:absolute; pointer-events:none; opacity:0.38;
   background:rgba(83,242,255,0.75);
@@ -183,10 +186,8 @@ body.playing #stickZone{ display:flex; }
   width:46px; height:46px; font-size:14px;
   border:1.5px solid rgba(139,147,201,0.6); background:rgba(10,16,40,0.55);
 }
-@media (pointer:fine) and (min-width:700px){
-  body.playing #stickZone{ display:none; }
-  #btnFocus{ left:calc(14px + var(--sal)); right:auto; width:68px; height:68px; font-size:13px; }
-}
+body.mobile-ui .desktop-only{ display:none; }
+body.desktop-ui .mobile-only{ display:none; }
 @keyframes shakeX{
   0%,100%{ transform:translateX(0); }
   25%{ transform:translateX(-4px); } 75%{ transform:translateX(4px); }
@@ -236,11 +237,11 @@ noscript{ color:var(--ink); font-size:16px; }
 
 <div id="scr-howto" class="screen hidden">
   <h2 class="sh">조작 안내</h2>
-  <div class="howrow"><div class="ic">🕹️</div><div class="tx">좌측 하단 <b>가상 스틱</b>으로 이동 — 기체를 가리지 않고 정밀 조종합니다. 공격은 <b>자동 발사</b>.</div></div>
-  <div class="howrow"><div class="ic">◎</div><div class="tx"><b>FOCUS</b>(왼쪽 아래)를 누르는 동안 저속 이동 + 실제 피격점(흰 점) 표시.</div></div>
-  <div class="howrow"><div class="ic">✦</div><div class="tx"><b>BOMB</b>(오른쪽 아래)은 화면의 탄을 지우고 잠시 무적이 됩니다.</div></div>
+  <div class="howrow mobile-only"><div class="ic">🕹️</div><div class="tx">좌측 하단 <b>가상 스틱</b>으로 이동 — 기체를 가리지 않고 정밀 조종합니다. 공격은 <b>자동 발사</b>.</div></div>
+  <div class="howrow mobile-only"><div class="ic">◎</div><div class="tx"><b>FOCUS</b>(오른쪽 아래)를 누르는 동안 저속 이동 + 실제 피격점(흰 점) 표시.</div></div>
+  <div class="howrow mobile-only"><div class="ic">✦</div><div class="tx"><b>BOMB</b>(오른쪽 아래)은 화면의 탄을 지우고 잠시 무적이 됩니다.</div></div>
   <div class="howrow"><div class="ic">✧</div><div class="tx">탄을 <b>아슬하게 스치면(그레이즈)</b> 점수와 배율이 오릅니다.</div></div>
-  <div class="howrow"><div class="ic">⌨</div><div class="tx">키보드: 방향키/WASD 이동 · Shift 포커스 · Space/X 폭탄 · P 일시정지 · Enter 시작.</div></div>
+  <div class="howrow desktop-only"><div class="ic">⌨</div><div class="tx">키보드: 방향키/WASD 이동 · Shift 포커스 · Space/X 폭탄 · P 일시정지 · Enter 시작.</div></div>
   <button id="hw-start" class="btn primary">확인</button>
 </div>
 

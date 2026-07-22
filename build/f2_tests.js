@@ -98,6 +98,15 @@ const TESTS=[
   A.ok(Math.abs(Math.sqrt(d.x*d.x+d.y*d.y)-1)<1e-9,'대각선 축 크기 오류');
   A.ok(Math.abs(d.px-d.py)<1e-9,'대각선 노브 좌표 오류');
 }},
+{ name:'PC·모바일 입력 UI 판별', fn:function(A){
+  A.eq(classifyUIMode({primaryCoarse:true,noHover:true,touchPoints:5},'', ''),'mobile');
+  A.eq(classifyUIMode({primaryCoarse:false,noHover:false,touchPoints:0},'', ''),'desktop');
+  A.eq(classifyUIMode({primaryCoarse:false,noHover:false,touchPoints:10},'', ''),'desktop',
+    '터치 노트북을 초기부터 모바일로 오인');
+  A.eq(classifyUIMode({primaryCoarse:false,noHover:false,touchPoints:10},'touch','desktop'),'mobile');
+  A.eq(classifyUIMode({primaryCoarse:true,noHover:true,touchPoints:5},'mouse','mobile'),'desktop');
+  A.eq(classifyUIMode({primaryCoarse:true,noHover:true,touchPoints:5},'pen','desktop'),'desktop');
+}},
 { name:'설정 범위 초과 정제', fn:function(A){
   var s=sanitizeSettings({sfx:5,music:-2,fxq:'weird',vib:0});
   A.eq(s.sfx,1); A.eq(s.music,0); A.eq(s.fxq,'high'); A.eq(s.vib,false);
@@ -594,6 +603,7 @@ var API={
   computeViewScale:computeViewScale,
   computeViewportTransform:computeViewportTransform,
   normalizeStick:normalizeStick,
+  classifyUIMode:classifyUIMode,
   ART_MANIFEST:ART_MANIFEST,
   makeHeadlessEnv:makeHeadlessEnv,
   runSelfTests:runSelfTests,

@@ -1,6 +1,6 @@
 /* LUMENFALL 서비스 워커 — 오프라인 캐시 (선택 사항, index.html 단독으로도 동작) */
 'use strict';
-var CACHE='lumenfall-678ba5c5a110';
+var CACHE='lumenfall-460ed0f93f59';
 var ASSETS=[
   './','./index.html','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png',
   './assets/kenney/kenvector_future.ttf','./assets/kenney/background-dark-purple.png',

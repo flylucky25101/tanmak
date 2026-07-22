@@ -7,11 +7,21 @@ function normalizeStick(dx,dy,maxR,dead){
   var mag=raw<=dead?0:(raw-dead)/(1-dead);
   return {x:nx*mag,y:ny*mag,px:nx*clamped,py:ny*clamped};
 }
+function classifyUIMode(caps,lastPointer,current){
+  caps=caps||{};
+  if(lastPointer==='touch') return 'mobile';
+  if(lastPointer==='mouse') return 'desktop';
+  if(lastPointer==='pen'&&(current==='mobile'||current==='desktop')) return current;
+  if(caps.primaryCoarse) return 'mobile';
+  if(caps.noHover&&(+caps.touchPoints||0)>0) return 'mobile';
+  return 'desktop';
+}
 function InputMgr(game,canvas,els){
   this.game=game; this.canvas=canvas; this.els=els;
   this.kX=1; this.kY=1;
   this.movePointer=null; this.lx=0; this.ly=0;
   this.stickPointer=null; this.stickX=0; this.stickY=0;
+  this.uiMode='desktop';
   this.accX=0; this.accY=0;
   this.keys={};
   this.focusTouch=false;
@@ -23,7 +33,7 @@ InputMgr.prototype={
     function pd(e){ if(e.cancelable) e.preventDefault(); }
     cv.addEventListener('pointerdown',function(e){
       pd(e); g.audioGesture();
-      if(e.pointerType==='touch') return;
+      if(self.uiMode!=='desktop'||e.pointerType==='touch') return;
       if(self.movePointer===null){
         self.movePointer=e.pointerId;
         self.lx=e.clientX; self.ly=e.clientY;
@@ -60,6 +70,7 @@ InputMgr.prototype={
     if(stick){
       stick.addEventListener('pointerdown',function(e){
         pd(e); e.stopPropagation(); g.audioGesture();
+        if(self.uiMode!=='mobile') return;
         if(self.stickPointer!==null) return;
         self.stickPointer=e.pointerId; stick.classList.add('on');
         try{ stick.setPointerCapture(e.pointerId); }catch(err){}
@@ -79,6 +90,7 @@ InputMgr.prototype={
     if(bf){
       bf.addEventListener('pointerdown',function(e){
         pd(e); e.stopPropagation(); g.audioGesture();
+        if(self.uiMode!=='mobile') return;
         self.focusTouch=true; bf.classList.add('on');
         try{ bf.setPointerCapture(e.pointerId); }catch(err){}
       },{passive:false});
@@ -92,6 +104,7 @@ InputMgr.prototype={
     if(bb){
       bb.addEventListener('pointerdown',function(e){
         pd(e); e.stopPropagation(); g.audioGesture();
+        if(self.uiMode!=='mobile') return;
         bb.classList.add('on');
         var ok=g.bomb();
         if(!ok){ bb.classList.add('deny'); setTimeout(function(){ bb.classList.remove('deny'); },220); }
@@ -138,6 +151,12 @@ InputMgr.prototype={
     if(this.els.bomb) this.els.bomb.classList.remove('on');
     if(this.els.stick) this.els.stick.classList.remove('on');
     if(this.els.stickKnob) this.els.stickKnob.style.transform='translate3d(0,0,0)';
+  },
+  setUIMode:function(mode){
+    mode=(mode==='mobile')?'mobile':'desktop';
+    if(this.uiMode===mode) return;
+    this.releaseAll();
+    this.uiMode=mode;
   },
   consumeMove:function(){
     var r={dx:this.accX,dy:this.accY};
@@ -424,6 +443,38 @@ function bootBrowser(){
   game.input=input;
   input.onEnter=function(){ ui.handleEnter(); };
   input.onEscape=function(){ ui.handleEscape(); };
+  /* Input-capability UI: no user-agent sniffing. Actual touch/mouse use wins. */
+  var forcedUIMode=(qp.ui==='mobile'||qp.ui==='desktop')?qp.ui:'';
+  var coarseMQ=ROOT.matchMedia?ROOT.matchMedia('(pointer: coarse)'):null;
+  var hoverMQ=ROOT.matchMedia?ROOT.matchMedia('(hover: none)'):null;
+  var lastPointer='',activeUIMode='';
+  function inputCaps(){
+    return {
+      primaryCoarse:!!(coarseMQ&&coarseMQ.matches),
+      noHover:!!(hoverMQ&&hoverMQ.matches),
+      touchPoints:(ROOT.navigator&&ROOT.navigator.maxTouchPoints)||0
+    };
+  }
+  function applyUIMode(pointerType){
+    if(pointerType==='touch'||pointerType==='mouse'||pointerType==='pen') lastPointer=pointerType;
+    var next=forcedUIMode||classifyUIMode(inputCaps(),lastPointer,activeUIMode);
+    if(next===activeUIMode) return;
+    activeUIMode=next;
+    game.uiMode=next; input.setUIMode(next);
+    if(document.body){
+      document.body.classList.toggle('mobile-ui',next==='mobile');
+      document.body.classList.toggle('desktop-ui',next==='desktop');
+      document.body.setAttribute('data-input-mode',next);
+    }
+  }
+  ROOT.addEventListener('pointerdown',function(e){ applyUIMode(e.pointerType); },{capture:true,passive:true});
+  function capabilityChanged(){ applyUIMode(''); }
+  [coarseMQ,hoverMQ].forEach(function(mq){
+    if(!mq) return;
+    if(mq.addEventListener) mq.addEventListener('change',capabilityChanged);
+    else if(mq.addListener) mq.addListener(capabilityChanged);
+  });
+  applyUIMode('');
   /* 리사이즈 */
   var rotateEl=document.getElementById('scr-rotate');
   function checkOrient(){

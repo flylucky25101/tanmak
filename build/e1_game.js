@@ -80,6 +80,7 @@ function Game(env,opts){
   this._loopRunning=false; this._rafId=0; this._lastTs=-1;
   this.autoLow=false; this._emaMs=16; this._slowT=0; this._fastT=0;
   this.debug=false; this.runActive=false;
+  this.uiMode='desktop';
   this._bgStars=this._makeStars();
   this._clearFwT=0;
 }
