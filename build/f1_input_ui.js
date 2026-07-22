@@ -1,8 +1,17 @@
 /* ======================= [17] 입력 관리자 ======================= */
+function normalizeStick(dx,dy,maxR,dead){
+  maxR=Math.max(1,+maxR||1); dead=U.clamp(+dead||0,0,0.9);
+  var len=Math.sqrt(dx*dx+dy*dy), clamped=Math.min(maxR,len);
+  if(len<0.0001) return {x:0,y:0,px:0,py:0};
+  var nx=dx/len, ny=dy/len, raw=clamped/maxR;
+  var mag=raw<=dead?0:(raw-dead)/(1-dead);
+  return {x:nx*mag,y:ny*mag,px:nx*clamped,py:ny*clamped};
+}
 function InputMgr(game,canvas,els){
   this.game=game; this.canvas=canvas; this.els=els;
-  this.k=1;
+  this.kX=1; this.kY=1;
   this.movePointer=null; this.lx=0; this.ly=0;
+  this.stickPointer=null; this.stickX=0; this.stickY=0;
   this.accX=0; this.accY=0;
   this.keys={};
   this.focusTouch=false;
@@ -14,6 +23,7 @@ InputMgr.prototype={
     function pd(e){ if(e.cancelable) e.preventDefault(); }
     cv.addEventListener('pointerdown',function(e){
       pd(e); g.audioGesture();
+      if(e.pointerType==='touch') return;
       if(self.movePointer===null){
         self.movePointer=e.pointerId;
         self.lx=e.clientX; self.ly=e.clientY;
@@ -23,8 +33,8 @@ InputMgr.prototype={
     cv.addEventListener('pointermove',function(e){
       if(e.pointerId!==self.movePointer) return;
       pd(e);
-      self.accX+=(e.clientX-self.lx)*self.k;
-      self.accY+=(e.clientY-self.ly)*self.k;
+      self.accX+=(e.clientX-self.lx)*self.kX;
+      self.accY+=(e.clientY-self.ly)*self.kY;
       self.lx=e.clientX; self.ly=e.clientY;
     },{passive:false});
     function upCancel(e){
@@ -33,6 +43,37 @@ InputMgr.prototype={
     cv.addEventListener('pointerup',upCancel);
     cv.addEventListener('pointercancel',function(e){ upCancel(e); self.focusTouch=false; });
     cv.addEventListener('lostpointercapture',upCancel);
+    /* 모바일 가상 방향 스틱 */
+    var stick=this.els.stick, knob=this.els.stickKnob;
+    function resetStick(){
+      self.stickPointer=null; self.stickX=0; self.stickY=0;
+      if(knob) knob.style.transform='translate3d(0,0,0)';
+      if(stick) stick.classList.remove('on');
+    }
+    function moveStick(e){
+      if(!stick||!knob) return;
+      var rect=stick.getBoundingClientRect();
+      var S=normalizeStick(e.clientX-(rect.left+rect.width/2),e.clientY-(rect.top+rect.height/2),rect.width*0.31,0.12);
+      self.stickX=S.x; self.stickY=S.y;
+      knob.style.transform='translate3d('+S.px.toFixed(1)+'px,'+S.py.toFixed(1)+'px,0)';
+    }
+    if(stick){
+      stick.addEventListener('pointerdown',function(e){
+        pd(e); e.stopPropagation(); g.audioGesture();
+        if(self.stickPointer!==null) return;
+        self.stickPointer=e.pointerId; stick.classList.add('on');
+        try{ stick.setPointerCapture(e.pointerId); }catch(err){}
+        moveStick(e);
+      },{passive:false});
+      stick.addEventListener('pointermove',function(e){
+        if(e.pointerId!==self.stickPointer) return;
+        pd(e); moveStick(e);
+      },{passive:false});
+      var offStick=function(e){ if(e.pointerId===self.stickPointer) resetStick(); };
+      stick.addEventListener('pointerup',offStick);
+      stick.addEventListener('pointercancel',offStick);
+      stick.addEventListener('lostpointercapture',offStick);
+    }
     /* FOCUS 버튼 */
     var bf=this.els.focus;
     if(bf){
@@ -89,11 +130,14 @@ InputMgr.prototype={
   },
   releaseAll:function(){
     this.movePointer=null;
+    this.stickPointer=null; this.stickX=0; this.stickY=0;
     this.focusTouch=false;
     this.accX=0; this.accY=0;
     this.keys={};
     if(this.els.focus) this.els.focus.classList.remove('on');
     if(this.els.bomb) this.els.bomb.classList.remove('on');
+    if(this.els.stick) this.els.stick.classList.remove('on');
+    if(this.els.stickKnob) this.els.stickKnob.style.transform='translate3d(0,0,0)';
   },
   consumeMove:function(){
     var r={dx:this.accX,dy:this.accY};
@@ -104,13 +148,13 @@ InputMgr.prototype={
     var v=0;
     if(this.keys.ArrowLeft||this.keys.a) v-=1;
     if(this.keys.ArrowRight||this.keys.d) v+=1;
-    return v;
+    return U.clamp(v+this.stickX,-1,1);
   },
   axisY:function(){
     var v=0;
     if(this.keys.ArrowUp||this.keys.w) v-=1;
     if(this.keys.ArrowDown||this.keys.s) v+=1;
-    return v;
+    return U.clamp(v+this.stickY,-1,1);
   },
   isFocus:function(){ return this.focusTouch||!!this.keys.Shift; }
 };
@@ -371,6 +415,8 @@ function bootBrowser(){
   if(qp.quality==='low') game.settings.fxq='low';
   var ui=new UIMgr(game);
   var input=new InputMgr(game,canvas,{
+    stick:document.getElementById('stickZone'),
+    stickKnob:document.getElementById('stickKnob'),
     focus:document.getElementById('btnFocus'),
     bomb:document.getElementById('btnBomb'),
     pause:document.getElementById('btnPause')
@@ -389,15 +435,25 @@ function bootBrowser(){
   }
   function resize(){
     var rect=app?app.getBoundingClientRect():{width:ROOT.innerWidth,height:ROOT.innerHeight};
-    var s=computeViewScale(rect.width,rect.height);
-    var cw=Math.max(2,Math.round(CFG.W*s)), ch=Math.max(2,Math.round(CFG.H*s));
+    var fit=computeViewportTransform(rect.width,rect.height);
+    var cw=Math.max(2,Math.round(fit.cssW)), ch=Math.max(2,Math.round(fit.cssH));
     canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
     var dpr=Math.min(ROOT.devicePixelRatio||1,CFG.DPR_MAX);
     if(cw*dpr>1500) dpr=Math.max(1,1500/cw);
     canvas.width=Math.max(2,Math.round(cw*dpr));
     canvas.height=Math.max(2,Math.round(ch*dpr));
-    game.view={scale:s,dpr:dpr,cssW:cw,cssH:ch};
-    input.k=CFG.W/cw;
+    var safeTop=0, safeBottom=0;
+    try{
+      var probe=document.createElement('div');
+      probe.style.cssText='position:fixed;visibility:hidden;pointer-events:none;padding-top:var(--sat);padding-bottom:var(--sab)';
+      document.body.appendChild(probe);
+      var pcs=ROOT.getComputedStyle(probe);
+      safeTop=parseFloat(pcs.paddingTop)||0; safeBottom=parseFloat(pcs.paddingBottom)||0;
+      document.body.removeChild(probe);
+    }catch(e){}
+    game.view={scaleX:fit.scaleX,scaleY:fit.scaleY,dpr:dpr,cssW:cw,cssH:ch,
+      safeTop:safeTop/fit.scaleY,safeBottom:safeBottom/fit.scaleY};
+    input.kX=CFG.W/cw; input.kY=CFG.H/ch;
     checkOrient();
   }
   var resizePending=false;

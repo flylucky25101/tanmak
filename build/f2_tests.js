@@ -83,6 +83,21 @@ const TESTS=[
   A.eq(computeViewScale(NaN,100),0.5);
   A.eq(computeViewScale(360,780),1);
 }},
+{ name:'Galaxy S23·iPhone 16 화면 채움 변환', fn:function(A){
+  var s23=computeViewportTransform(360,780);
+  A.eq(s23.cssW,360); A.eq(s23.cssH,780); A.eq(s23.scaleX,1); A.eq(s23.scaleY,1);
+  var ip16=computeViewportTransform(393,852);
+  A.eq(ip16.cssW,393); A.eq(ip16.cssH,852);
+  A.ok(Math.abs(ip16.scaleX-393/360)<1e-9);
+  A.ok(Math.abs(ip16.scaleY-852/780)<1e-9);
+}},
+{ name:'가상 스틱 데드존·대각선 정규화', fn:function(A){
+  var z=normalizeStick(2,1,40,0.12); A.eq(z.x,0); A.eq(z.y,0);
+  var r=normalizeStick(100,0,40,0.12); A.eq(r.x,1); A.eq(r.y,0); A.eq(r.px,40);
+  var d=normalizeStick(40,40,40,0.12);
+  A.ok(Math.abs(Math.sqrt(d.x*d.x+d.y*d.y)-1)<1e-9,'대각선 축 크기 오류');
+  A.ok(Math.abs(d.px-d.py)<1e-9,'대각선 노브 좌표 오류');
+}},
 { name:'설정 범위 초과 정제', fn:function(A){
   var s=sanitizeSettings({sfx:5,music:-2,fxq:'weird',vib:0});
   A.eq(s.sfx,1); A.eq(s.music,0); A.eq(s.fxq,'high'); A.eq(s.vib,false);
@@ -385,7 +400,7 @@ const TESTS=[
   function add(name,x0,x1,row){ segs.push({name:name,x0:x0,x1:x1,row:row}); }
   /* 1행 */
   add('SCORE라벨',10,10+tw('SCORE',10),1);
-  var hiTxt='HI '+U.fmtScore(999999999);
+  var hiTxt='HI // '+U.fmtScore(999999999);
   add('HI',W-10-tw(hiTxt,10),W-10,1);
   /* 2행 */
   var scTxt=U.fmtScore(999999999);
@@ -399,9 +414,9 @@ const TESTS=[
   add('폭탄아이콘',87,103,3);
   add('폭탄수',104,104+tw('×6',14,800),3);
   add('BOMB',126,126+tw('BOMB',10),3);
-  add('GRAZE라벨',176,176+tw('GRAZE',10),3);
-  add('GRAZE값',210,210+tw('99999',14,800),3);
-  var dfTxt='ABYSS 연습';
+  add('GRAZE라벨',174,174+tw('GRAZE',10),3);
+  add('GRAZE값',216,216+tw('99999',14,800),3);
+  var dfTxt='ABYSS // P';
   add('난이도',W-10-tw(dfTxt,10),W-10,3);
   /* 보스 정보행(4행): 보스명/페이즈핍, 페이즈라벨/타이머 — 한글 포함 최장 케이스 */
   var longestBoss='프리즘 코어 ASTERION';
@@ -577,6 +592,8 @@ var API={
   RNG:RNG, Game:Game, Pool:Pool,
   makeStorage:makeStorage, sanitizeSettings:sanitizeSettings, loadSaveData:loadSaveData,
   computeViewScale:computeViewScale,
+  computeViewportTransform:computeViewportTransform,
+  normalizeStick:normalizeStick,
   makeHeadlessEnv:makeHeadlessEnv,
   runSelfTests:runSelfTests,
   PATTERN_FACTORIES:PATTERN_FACTORIES,

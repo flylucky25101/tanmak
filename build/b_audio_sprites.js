@@ -243,21 +243,48 @@ SpriteKit.prototype={
     if(this.cache[key]) return this.cache[key];
     var bomb=(type===1);
     var col=bomb?PAL.gold:PAL.green;
-    var side=bomb?34:26;
+    var side=bomb?42:36;
     var sp=this._mk(side,side,function(ctx,w,h){
       var c=w/2;
-      var box=bomb?11:8.5;
+      var box=bomb?14:11;
       /* 바깥 검은 아웃라인 — 배경/탄환과 분리 */
       ctx.fillStyle='rgba(0,0,0,0.85)';
-      pathRoundSp(ctx,c-box-2.5,c-box-2.5,(box+2.5)*2,(box+2.5)*2,3);
+      ctx.beginPath();
+      if(bomb){
+        ctx.moveTo(c,c-box-4); ctx.lineTo(c+box+4,c-box*0.48);
+        ctx.lineTo(c+box+4,c+box*0.48); ctx.lineTo(c,c+box+4);
+        ctx.lineTo(c-box-4,c+box*0.48); ctx.lineTo(c-box-4,c-box*0.48);
+      }else{
+        ctx.moveTo(c,c-box-4); ctx.lineTo(c+box+4,c);
+        ctx.lineTo(c,c+box+4); ctx.lineTo(c-box-4,c);
+      }
+      ctx.closePath();
       ctx.fill();
       /* 본체: 무광 솔리드 사각 */
       ctx.fillStyle=col;
-      pathRoundSp(ctx,c-box,c-box,box*2,box*2,2.5);
+      ctx.beginPath();
+      if(bomb){
+        ctx.moveTo(c,c-box-1); ctx.lineTo(c+box+1,c-box*0.42);
+        ctx.lineTo(c+box+1,c+box*0.42); ctx.lineTo(c,c+box+1);
+        ctx.lineTo(c-box-1,c+box*0.42); ctx.lineTo(c-box-1,c-box*0.42);
+      }else{
+        ctx.moveTo(c,c-box-1); ctx.lineTo(c+box+1,c);
+        ctx.lineTo(c,c+box+1); ctx.lineTo(c-box-1,c);
+      }
+      ctx.closePath();
       ctx.fill();
       /* 안쪽 어두운 판 — 글자 대비 확보 */
       ctx.fillStyle=bomb?'#3a2a00':'#04331d';
-      pathRoundSp(ctx,c-box+2.5,c-box+2.5,(box-2.5)*2,(box-2.5)*2,2);
+      ctx.beginPath();
+      if(bomb){
+        ctx.moveTo(c,c-box+3); ctx.lineTo(c+box-3,c-box*0.30);
+        ctx.lineTo(c+box-3,c+box*0.30); ctx.lineTo(c,c+box-3);
+        ctx.lineTo(c-box+3,c+box*0.30); ctx.lineTo(c-box+3,c-box*0.30);
+      }else{
+        ctx.moveTo(c,c-box+3); ctx.lineTo(c+box-3,c);
+        ctx.lineTo(c,c+box-3); ctx.lineTo(c-box+3,c);
+      }
+      ctx.closePath();
       ctx.fill();
       /* 모서리 마커(픽업 느낌) */
       ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.6; ctx.lineCap='round';
@@ -270,9 +297,9 @@ SpriteKit.prototype={
       ctx.stroke();
       /* 라벨 */
       ctx.fillStyle=col;
-      ctx.font='900 '+(bomb?13:11)+'px system-ui,sans-serif';
+      ctx.font='900 '+(bomb?12:8)+'px system-ui,sans-serif';
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(bomb?'B':'P',c,c+0.5);
+      ctx.fillText(bomb?'BOMB':'PWR',c,c+0.5);
     });
     this.cache[key]=sp;
     return sp;

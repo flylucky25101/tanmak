@@ -319,7 +319,8 @@ Game.prototype={
     var tm=P.focus?0.55:1;
     var ox=P.x, oy=P.y;
     P.x=U.clamp(P.x+mv.dx*tm+ax*spd*dt,12,CFG.W-12);
-    P.y=U.clamp(P.y+mv.dy*tm+ay*spd*dt,CFG.PLAYER.minY,CFG.H-CFG.PLAYER.maxYPad);
+    var safePlayTop=Math.max(CFG.PLAYER.minY,((this.view&&this.view.safeTop)||0)+CFG.HUD_H+10);
+    P.y=U.clamp(P.y+mv.dy*tm+ay*spd*dt,safePlayTop,CFG.H-CFG.PLAYER.maxYPad);
     if(dt>0){
       P.vx=U.lerp(P.vx,(P.x-ox)/dt,0.35);
       P.vy=U.lerp(P.vy,(P.y-oy)/dt,0.35);

@@ -10,7 +10,7 @@ const SAVE_KEY='lumenfall.v1';
 
 /* ======================= [1] 설정/상수 ======================= */
 const CFG={
-  W:360, H:780, HUD_H:58, DPR_MAX:2, DT_MAX:1/30,
+  W:360, H:780, HUD_H:64, DPR_MAX:2, DT_MAX:1/30,
   HITSTOP:{ kill:0.045, big:0.075, hit:0.11, phase:0.12, factor:0.18, max:0.14 },
   CHAIN:{ window:2.4, showAt:3 },
   PLAYER:{ speed:300, focusMul:0.42, hitR:3, grazeR:16, fireInt:0.085,
@@ -76,6 +76,11 @@ const U={
 function computeViewScale(w,h){
   if(!isFinite(w)||!isFinite(h)||w<=2||h<=2) return 0.5;
   return Math.max(0.2,Math.min(w/CFG.W,h/CFG.H));
+}
+function computeViewportTransform(w,h){
+  w=isFinite(w)&&w>2?w:CFG.W;
+  h=isFinite(h)&&h>2?h:CFG.H;
+  return {cssW:w,cssH:h,scaleX:w/CFG.W,scaleY:h/CFG.H};
 }
 
 /* ======================= [3] seed 기반 난수 ======================= */
