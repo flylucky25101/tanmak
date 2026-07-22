@@ -12,6 +12,11 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
 <link rel="apple-touch-icon" href="./assets/icon-192.png">
 <style>
+@font-face{
+  font-family:'KenVector Future';
+  src:url('./assets/kenney/kenvector_future.ttf') format('truetype');
+  font-display:swap;
+}
 :root{
   --sat:env(safe-area-inset-top,0px);
   --sab:env(safe-area-inset-bottom,0px);
@@ -25,7 +30,7 @@
 html,body{
   margin:0; padding:0; width:100%; height:100%;
   background:#03040a; color:var(--ink);
-  font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans KR',sans-serif;
+  font-family:'KenVector Future',system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans KR',sans-serif;
   overflow:hidden; touch-action:none; overscroll-behavior:none;
   user-select:none; -webkit-user-select:none;
 }

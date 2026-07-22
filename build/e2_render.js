@@ -10,14 +10,14 @@ function pathRound(ctx,x,y,w,h,r){
   ctx.closePath();
 }
 const FONT={
-  n10:'600 10px system-ui,sans-serif',
-  n12:'600 12px system-ui,sans-serif',
-  n13:'600 13px system-ui,sans-serif',
-  n14:'700 14px system-ui,sans-serif',
-  n16:'700 16px system-ui,sans-serif',
-  n18:'800 18px system-ui,sans-serif',
-  n22:'800 22px system-ui,sans-serif',
-  n26:'800 26px system-ui,sans-serif'
+  n10:'600 10px "KenVector Future",system-ui,sans-serif',
+  n12:'600 12px "KenVector Future",system-ui,sans-serif',
+  n13:'600 13px "KenVector Future",system-ui,sans-serif',
+  n14:'700 14px "KenVector Future",system-ui,sans-serif',
+  n16:'700 16px "KenVector Future",system-ui,sans-serif',
+  n18:'800 18px "KenVector Future",system-ui,sans-serif',
+  n22:'800 22px "KenVector Future",system-ui,sans-serif',
+  n26:'800 26px "KenVector Future",system-ui,sans-serif'
 };
 Object.assign(Game.prototype,{
   render:function(){
@@ -81,6 +81,19 @@ Object.assign(Game.prototype,{
     }
     ctx.fillStyle=this._bgGrad;
     ctx.fillRect(0,0,CFG.W,CFG.H);
+    /* Kenney starfield texture adds depth while procedural stars keep motion. */
+    var bgImg=this.art&&this.art.bg;
+    if(artReady(bgImg)&&ctx.createPattern){
+      if(!this._kenneyBgPattern) this._kenneyBgPattern=ctx.createPattern(bgImg,'repeat');
+      if(this._kenneyBgPattern){
+        ctx.save();
+        ctx.globalAlpha=0.22;
+        ctx.translate(0,(this.bgT*7)%256);
+        ctx.fillStyle=this._kenneyBgPattern;
+        ctx.fillRect(0,-256,CFG.W,CFG.H+256);
+        ctx.restore();
+      }
+    }
     /* 저대비 그리드 */
     ctx.globalAlpha=0.045;
     ctx.strokeStyle=PAL.cyan; ctx.lineWidth=1;
@@ -113,6 +126,7 @@ Object.assign(Game.prototype,{
       var it=this.items[i];
       var sp=this.sprites.item(it.type);
       var bomb=(it.type===1);
+      var itemImg=this.art&&(bomb?this.art.item_bomb:this.art.item_power);
       ctx.save();
       ctx.translate(it.x,it.y);
       /* Long pickup beacon stays readable through dense bullets. */
@@ -142,7 +156,16 @@ Object.assign(Game.prototype,{
       /* 본체는 회전하지 않음 — 글자(P/B)가 항상 읽혀야 하므로 상하 바운스만 */
       ctx.globalAlpha=1;
       ctx.translate(0,Math.sin(it.t*5)*1.5);
-      ctx.drawImage(sp.cv,-sp.hw,-sp.hh);
+      if(artReady(itemImg)){
+        ctx.shadowColor=bomb?PAL.gold:PAL.green; ctx.shadowBlur=9;
+        drawArt(ctx,itemImg,bomb?29:28);
+        ctx.shadowBlur=0;
+        ctx.font=FONT.n10; ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.lineWidth=3; ctx.strokeStyle='rgba(3,4,12,0.9)';
+        ctx.strokeText(bomb?'BOMB':'PWR',0,16);
+        ctx.fillStyle=bomb?PAL.gold:PAL.green;
+        ctx.fillText(bomb?'BOMB':'PWR',0,16);
+      }else ctx.drawImage(sp.cv,-sp.hw,-sp.hh);
       ctx.restore();
     }
     ctx.globalAlpha=1;
@@ -164,7 +187,17 @@ Object.assign(Game.prototype,{
         var sq=e.squash*0.22;
         ctx.scale(1+sq,1-sq);
       }
-      if(e.type==='drone'){
+      var enemyImg=this.art&&this.art['enemy_'+e.type];
+      if(artReady(enemyImg)){
+        var enemyAng=(e.type==='darter')?Math.atan2(e.vy,e.vx)+Math.PI/2:
+          Math.PI+((e.type==='weaver')?Math.sin(e.t*1.5)*0.09:0);
+        var enemyW=e.r*((e.type==='drone')?3.0:(e.type==='fort'?2.75:2.9));
+        ctx.rotate(enemyAng);
+        ctx.shadowColor=(e.type==='fort')?PAL.gold:(e.type==='darter'?PAL.orange:PAL.violet);
+        ctx.shadowBlur=8;
+        drawArt(ctx,enemyImg,enemyW);
+        ctx.shadowBlur=0;
+      }else if(e.type==='drone'){
         /* 정찰 드론: 회전 링 + 육각 코어 + 단안 센서 */
         var dp=0.65+0.35*Math.sin(e.t*7);
         ctx.globalAlpha=0.26;
@@ -352,6 +385,16 @@ Object.assign(Game.prototype,{
       ctx.fillStyle='#ffffff';
       ctx.beginPath(); ctx.arc(0,0,5.5,0,TAU); ctx.fill();
     }
+    /* Detailed Kenney hull sits above the procedural phase machinery. */
+    var bossImg=this.art&&this.art[B.def.id==='octav'?'boss_octav':'boss_asterion'];
+    if(artReady(bossImg)){
+      ctx.save();
+      if(B.def.id!=='octav') ctx.rotate(Math.PI);
+      ctx.shadowColor=clr; ctx.shadowBlur=18;
+      drawArt(ctx,bossImg,B.r*(B.def.id==='octav'?1.62:1.92));
+      ctx.shadowBlur=0;
+      ctx.restore();
+    }
     if(B.state==='switch'){
       ctx.strokeStyle='#ffffff';
       ctx.globalAlpha=0.6*(1-B.swT/1.5);
@@ -384,14 +427,31 @@ Object.assign(Game.prototype,{
     ctx.translate(P.x,P.y);
     ctx.globalAlpha=blink?0.4:1;
     ctx.rotate(P.tilt);
-    ctx.fillStyle='#dfe9ff';
-    ctx.beginPath();
-    ctx.moveTo(0,-15); ctx.lineTo(9,4); ctx.lineTo(4,9); ctx.lineTo(0,6);
-    ctx.lineTo(-4,9); ctx.lineTo(-9,4);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle=PAL.cyan; ctx.lineWidth=1.5; ctx.stroke();
-    ctx.fillStyle=PAL.cyan;
-    ctx.beginPath(); ctx.arc(0,-2,3.5,0,TAU); ctx.fill();
+    var playerImg=this.art&&this.art.player;
+    if(artReady(playerImg)){
+      if(P.focus&&artReady(this.art.shield)){
+        ctx.save(); ctx.globalAlpha*=0.22; ctx.globalCompositeOperation='screen';
+        drawArt(ctx,this.art.shield,48,48); ctx.restore();
+      }
+      ctx.globalAlpha*=0.65;
+      ctx.fillStyle=PAL.cyan;
+      ctx.beginPath();
+      ctx.moveTo(-4,8); ctx.lineTo(0,18+Math.sin(this.bgT*24)*2); ctx.lineTo(4,8);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=blink?0.4:1;
+      ctx.shadowColor=PAL.cyan; ctx.shadowBlur=9;
+      drawArt(ctx,playerImg,34);
+      ctx.shadowBlur=0;
+    }else{
+      ctx.fillStyle='#dfe9ff';
+      ctx.beginPath();
+      ctx.moveTo(0,-15); ctx.lineTo(9,4); ctx.lineTo(4,9); ctx.lineTo(0,6);
+      ctx.lineTo(-4,9); ctx.lineTo(-9,4);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle=PAL.cyan; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle=PAL.cyan;
+      ctx.beginPath(); ctx.arc(0,-2,3.5,0,TAU); ctx.fill();
+    }
     ctx.rotate(-P.tilt);
     if(P.focus||this.settings.showHitbox){
       ctx.globalAlpha=0.85;
@@ -519,6 +579,12 @@ Object.assign(Game.prototype,{
   _iconShip:function(ctx,x,y,s,color){
     ctx.save();
     ctx.translate(x,y); ctx.scale(s,s);
+    if(this.art&&artReady(this.art.player)){
+      ctx.globalAlpha=(color===PAL.dim)?0.38:1;
+      drawArt(ctx,this.art.player,13);
+      ctx.restore();
+      return;
+    }
     ctx.fillStyle=color;
     ctx.beginPath();
     ctx.moveTo(0,-6); ctx.lineTo(4.2,2); ctx.lineTo(1.8,4); ctx.lineTo(0,2.6);
@@ -530,6 +596,12 @@ Object.assign(Game.prototype,{
   _iconBomb:function(ctx,x,y,s,color){
     ctx.save();
     ctx.translate(x,y); ctx.scale(s,s);
+    if(this.art&&artReady(this.art.item_bomb)){
+      ctx.globalAlpha=(color===PAL.dim)?0.38:1;
+      drawArt(ctx,this.art.item_bomb,13,13);
+      ctx.restore();
+      return;
+    }
     ctx.fillStyle=color;
     ctx.beginPath(); ctx.arc(0,1.4,4.6,0,TAU); ctx.fill();
     ctx.fillRect(-1.3,-4.6,2.6,2.4);

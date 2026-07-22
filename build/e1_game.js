@@ -48,6 +48,7 @@ function Game(env,opts){
   var self=this;
   this.audio=new AudioMgr(function(){ return self.settings; });
   this._audioInit=false;
+  this.art=opts.art||loadGameArt('./assets/kenney/');
   this.sprites=new SpriteKit(env.createCanvas);
   this.pool={
     eb:new Pool('eb',newEB,CFG.POOL.eb),

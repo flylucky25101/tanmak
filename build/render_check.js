@@ -2,10 +2,19 @@
 'use strict';
 const fs=require('fs');
 const path=require('path');
-const { createCanvas }=require('@napi-rs/canvas');
+const { createCanvas,loadImage }=require('@napi-rs/canvas');
 new Function(fs.readFileSync(path.join(__dirname,'game.js'),'utf8'))();
 const api=globalThis.LUMENFALL;
 const CFG=api.CFG;
+
+async function loadLocalArt(){
+  const art={};
+  for(const [key,file] of Object.entries(api.ART_MANIFEST)){
+    art[key]=await loadImage(path.join(__dirname,'..','assets','kenney',file));
+  }
+  return art;
+}
+let localArt=null;
 
 function mkEnv(){
   const cv=createCanvas(CFG.W,CFG.H);
@@ -20,7 +29,7 @@ function mkEnv(){
 /* ---- 실측 텍스트 겹침 검사: ctx.fillText를 후킹해 실제 measureText로 박스 수집 ---- */
 function auditHUD(label,setup){
   const env=mkEnv();
-  const g=new api.Game(env,{});
+  const g=new api.Game(env,{art:localArt});
   g.view={scale:1,dpr:1,cssW:CFG.W,cssH:CFG.H};
   g.setState('TITLE'); g.startRun('abyss',{seed:5});
   setup(g);
@@ -69,6 +78,8 @@ function auditHUD(label,setup){
   return {ok:issues.length===0,canvas:env.canvas};
 }
 
+async function main(){
+localArt=await loadLocalArt();
 let fail=0;
 /* 1) 최악 조건: 9자리 점수, 목숨6, 폭탄6, 그레이즈 5자리, ABYSS 연습 */
 let r=auditHUD('최악값',g=>{
@@ -110,3 +121,5 @@ fs.writeFileSync(path.join(__dirname,'shot_boss.png'),r.canvas.toBuffer('image/p
 
 console.log(fail===0?'\n렌더 검사: 전부 통과 (PNG 3장 저장)':'\n렌더 검사 실패 '+fail+'건');
 process.exitCode=fail?1:0;
+}
+main().catch(err=>{ console.error(err); process.exitCode=1; });

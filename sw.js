@@ -1,7 +1,15 @@
 /* LUMENFALL 서비스 워커 — 오프라인 캐시 (선택 사항, index.html 단독으로도 동작) */
 'use strict';
-var CACHE='lumenfall-9fdbba929b13';
-var ASSETS=['./','./index.html','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
+var CACHE='lumenfall-678ba5c5a110';
+var ASSETS=[
+  './','./index.html','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png',
+  './assets/kenney/kenvector_future.ttf','./assets/kenney/background-dark-purple.png',
+  './assets/kenney/player-blue.png','./assets/kenney/enemy-drone.png','./assets/kenney/enemy-darter.png',
+  './assets/kenney/enemy-weaver.png','./assets/kenney/enemy-fort.png',
+  './assets/kenney/boss-octav.png','./assets/kenney/boss-asterion.png',
+  './assets/kenney/item-power.png','./assets/kenney/item-bomb.png','./assets/kenney/shield.png',
+  './assets/kenney/LICENSE.txt'
+];
 
 self.addEventListener('install',function(e){
   e.waitUntil(

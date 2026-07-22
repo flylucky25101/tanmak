@@ -1,5 +1,10 @@
 # LUMENFALL
 
+## Third-party assets
+
+- Space Shooter (Remastered) by Kenney Vleugels — CC0 1.0.
+- The original license is preserved at `assets/kenney/LICENSE.txt`.
+
 모바일 우선 세로형 탄막 슈팅 게임입니다. 외부 런타임 의존성 없이 Canvas 2D와 Web Audio API만으로 동작합니다.
 
 ## 실행

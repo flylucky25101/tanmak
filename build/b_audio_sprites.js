@@ -171,6 +171,40 @@ function pathRoundSp(ctx,x,y,w,h,r){
   ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
   ctx.closePath();
 }
+const ART_MANIFEST={
+  bg:'background-dark-purple.png',
+  player:'player-blue.png',
+  enemy_drone:'enemy-drone.png',
+  enemy_darter:'enemy-darter.png',
+  enemy_weaver:'enemy-weaver.png',
+  enemy_fort:'enemy-fort.png',
+  boss_octav:'boss-octav.png',
+  boss_asterion:'boss-asterion.png',
+  item_power:'item-power.png',
+  item_bomb:'item-bomb.png',
+  shield:'shield.png'
+};
+function loadGameArt(base){
+  if(!ROOT.Image) return null;
+  var art={}, root=base||'./assets/kenney/';
+  Object.keys(ART_MANIFEST).forEach(function(key){
+    var img=new ROOT.Image();
+    try{ img.decoding='async'; }catch(e){}
+    img.src=root+ART_MANIFEST[key];
+    art[key]=img;
+  });
+  return art;
+}
+function artReady(img){
+  return !!(img&&img.complete&&img.naturalWidth>0&&img.naturalHeight>0);
+}
+function drawArt(ctx,img,w,h){
+  if(!artReady(img)) return false;
+  var ratio=img.naturalHeight/img.naturalWidth;
+  var dh=h||w*ratio;
+  ctx.drawImage(img,-w/2,-dh/2,w,dh);
+  return true;
+}
 function SpriteKit(createCanvas){
   this.cc=createCanvas;
   this.cache={};

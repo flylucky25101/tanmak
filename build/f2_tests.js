@@ -594,6 +594,7 @@ var API={
   computeViewScale:computeViewScale,
   computeViewportTransform:computeViewportTransform,
   normalizeStick:normalizeStick,
+  ART_MANIFEST:ART_MANIFEST,
   makeHeadlessEnv:makeHeadlessEnv,
   runSelfTests:runSelfTests,
   PATTERN_FACTORIES:PATTERN_FACTORIES,
